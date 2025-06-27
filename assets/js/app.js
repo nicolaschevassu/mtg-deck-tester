@@ -640,7 +640,20 @@ createApp({
     },
 
     // === COMPUTED PROPERTIES ===
-    computed: {
+    computed: {    
+        filteredDeckCards() {
+            if (!this.currentDeck?.cards || !this.store?.cardCache) {
+                return [];
+            }
+    
+            return Object.entries(this.currentDeck.cards)
+                .map(([cardId, quantity]) => {
+                    const card = this.store.cardCache.get(cardId);
+                    return card ? { cardId, quantity, card } : null;
+                })
+                .filter(Boolean); // Enlève les null
+        },
+        
         deckRecommendations() {
             try {
                 if (!this.currentDeck?.cards || !this.store?.cardCache) {

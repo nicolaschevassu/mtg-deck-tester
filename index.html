@@ -451,19 +451,18 @@ CREATE POLICY "Users can delete own decks" ON decks
                             <!-- Liste des cartes du deck -->
                             <div class="deck-card-list">
                                 <div 
-                                    v-for="(quantity, cardId) in currentDeck.cards" 
+                                    v-for="{ cardId, quantity, card } in filteredDeckCards" 
                                     :key="cardId"
-                                    v-if="getCardById(cardId)"
                                     class="deck-card-entry"
                                 >
                                     <div class="card-details">
                                         <div class="card-name">
-                                            <strong>{{ quantity }}x</strong> {{ getCardById(cardId).name }}
+                                            <strong>{{ quantity }}x</strong> {{ card.name }}
                                         </div>
                                         <div class="card-meta">
-                                            <span>{{ getCardById(cardId).type_line }}</span>
-                                            <span v-if="getCardById(cardId).mana_cost" class="mana-cost">
-                                                {{ getCardById(cardId).mana_cost }}
+                                            <span>{{ card.type_line }}</span>
+                                            <span v-if="card.mana_cost" class="mana-cost">
+                                                {{ card.mana_cost }}
                                             </span>
                                         </div>
                                     </div>
@@ -479,7 +478,7 @@ CREATE POLICY "Users can delete own decks" ON decks
                                 </div>
                                 
                                 <!-- Message si deck vide -->
-                                <div v-if="!deckLoading && getTotalCards() === 0" class="empty-deck">
+                                <div v-if="!deckLoading && filteredDeckCards.length === 0" class="empty-deck">
                                     <h4>🎴 Votre deck est vide</h4>
                                     <p>Utilisez la recherche pour ajouter des cartes ou importez une liste existante !</p>
                                 </div>
