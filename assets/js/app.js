@@ -1,25 +1,30 @@
+/**
+ * MTG Deck Builder - Application principale Vue.js
+ * Version robuste avec gestion d'erreurs complète
+ */
+
 const { createApp } = Vue;
 
 createApp({
     data() {
         return {
-            // Configuration Supabase
+            // Store global
+            store: null,
+            
+            // État de l'interface
+            loading: false,
+            isInitialized: false,
             supabaseConfigured: false,
-            supabaseConfig: {
-                url: '',
-                anonKey: ''
-            },
-            supabaseClient: null,
             isConnected: false,
-
-            // Authentification
             isAuthenticated: false,
-            authMode: 'login', // ← Variable qui manquait !
+            currentUser: null,
+            authMode: 'login',
             authLoading: false,
             authError: '',
             authSuccess: '',
-            currentUser: null,
-
+            currentView: 'decks',
+            showCreateDeck: false,
+            
             // Formulaires d'authentification
             loginForm: {
                 email: '',
@@ -30,10 +35,10 @@ createApp({
                 password: '',
                 confirmPassword: ''
             },
-
-            // Interface
-            currentView: 'decks',
-            showCreateDeck: false,
+            supabaseConfig: {
+                url: '',
+                anonKey: ''
+            },
 
             // Decks
             userDecks: [],
@@ -47,424 +52,645 @@ createApp({
             searchResults: [],
             searchLoading: false,
             bulkAddText: '',
-            bulkLoading: false,
-            cardCache: {},
-
-            // Debounce timer
-            searchTimeout: null
+            bulkLoading: false
         };
     },
 
     async mounted() {
-        // Vérifier s'il y a une session Supabase sauvegardée
-        const savedConfig = localStorage.getItem('mtg_supabase_config');
-        if (savedConfig) {
-            try {
-                this.supabaseConfig = JSON.parse(savedConfig);
-                await this.configureSupabase();
-            } catch (error) {
-                console.error('Erreur lors du chargement de la configuration:', error);
-            }
+        console.log('🚀 Initialisation de l\'application MTG Deck Builder');
+        
+        try {
+            this.loading = true;
+            
+            // Vérifier que tous les services sont disponibles
+            this.checkRequiredServices();
+            
+            // Initialiser le store
+            this.store = new AppStore();
+            this.store.subscribe(this.updateLocalState.bind(this));
+            
+            await this.store.initialize();
+            
+            // Vérifier les méthodes
+            this.checkRequiredMethods();
+            
+            console.log('✅ Application initialisée avec succès');
+            
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'initialisation:', error);
+            this.authError = `Erreur d'initialisation: ${error.message}`;
+        } finally {
+            this.loading = false;
         }
     },
 
     methods: {
-        // === CONFIGURATION SUPABASE ===
-        async configureSupabase() {
-            if (!this.supabaseConfig.url || !this.supabaseConfig.anonKey) {
-                this.authError = 'Veuillez remplir tous les champs de configuration';
+        // === VÉRIFICATIONS ET DIAGNOSTICS ===
+        
+        checkRequiredServices() {
+            const requiredServices = [
+                'SupabaseConfig', 'AuthService', 'DeckService', 
+                'ScryfallService', 'AppStore', 'Helpers', 'CardCache'
+            ];
+            
+            const missing = requiredServices.filter(service => !window[service]);
+            
+            if (missing.length > 0) {
+                throw new Error(`Services manquants: ${missing.join(', ')}`);
+            }
+            
+            console.log('✅ Tous les services requis sont disponibles');
+        },
+
+        checkRequiredMethods() {
+            const requiredMethods = [
+                'getTotalCardsFromDeckData', 'formatRelativeDate',
+                'getTotalCards', 'getCreatureCount', 'getSpellCount', 'getLandCount'
+            ];
+            
+            const missing = requiredMethods.filter(method => typeof this[method] !== 'function');
+            
+            if (missing.length > 0) {
+                console.warn('⚠️ Méthodes manquantes:', missing);
+            } else {
+                console.log('✅ Toutes les méthodes requises sont disponibles');
+            }
+        },
+
+        // === SYNCHRONISATION ÉTAT ===
+        
+        updateLocalState(newState) {
+            if (!newState || typeof newState !== 'object') {
+                console.warn('updateLocalState: newState invalide', newState);
                 return;
             }
 
             try {
-                // Créer le client Supabase
-                this.supabaseClient = supabase.createClient(
+                Object.keys(newState).forEach(key => {
+                    const hasProperty = key in this || 
+                                      Object.prototype.hasOwnProperty.call(this, key) ||
+                                      (this.$data && key in this.$data);
+                    
+                    if (hasProperty) {
+                        this[key] = newState[key];
+                    }
+                });
+            } catch (error) {
+                console.error('Erreur dans updateLocalState:', error);
+                this.updateKnownProperties(newState);
+            }
+        },
+
+        updateKnownProperties(newState) {
+            const knownProperties = [
+                'loading', 'authLoading', 'deckLoading', 'decksLoading', 'searchLoading', 'bulkLoading',
+                'isAuthenticated', 'currentUser', 'userDecks', 'currentDeck', 'currentView',
+                'authError', 'authSuccess', 'isConnected', 'supabaseConfigured',
+                'searchResults', 'searchQuery'
+            ];
+
+            knownProperties.forEach(prop => {
+                if (newState.hasOwnProperty(prop)) {
+                    this[prop] = newState[prop];
+                }
+            });
+        },
+
+        // === GESTION D'ERREURS ===
+        
+        handleError(error, context = 'Opération') {
+            console.error(`❌ Erreur dans ${context}:`, error);
+            
+            const errorMessage = error.message || 'Erreur inconnue';
+            this.authError = `${context}: ${errorMessage}`;
+            
+            // Auto-effacement après 10 secondes
+            setTimeout(() => {
+                if (this.authError === `${context}: ${errorMessage}`) {
+                    this.authError = '';
+                }
+            }, 10000);
+        },
+
+        // === CONFIGURATION SUPABASE ===
+        
+        async configureSupabase() {
+            if (!this.supabaseConfig.url || !this.supabaseConfig.anonKey) {
+                this.handleError(new Error('URL et clé Supabase requis'), 'Configuration Supabase');
+                return;
+            }
+
+            try {
+                this.authLoading = true;
+                this.authError = '';
+                
+                if (!this.store) {
+                    this.handleError(new Error('Store non initialisé'), 'Configuration Supabase');
+                    return;
+                }
+                
+                await this.store.configureSupabase(
                     this.supabaseConfig.url,
                     this.supabaseConfig.anonKey
                 );
-
-                // Tester la connexion
-                const { data, error } = await this.supabaseClient
-                    .from('decks')
-                    .select('count')
-                    .limit(1);
-
-                if (error && error.code !== 'PGRST116') { // PGRST116 = table vide, c'est OK
-                    throw error;
-                }
-
-                // Sauvegarder la configuration
-                localStorage.setItem('mtg_supabase_config', JSON.stringify(this.supabaseConfig));
-
-                this.supabaseConfigured = true;
-                this.isConnected = true;
-                this.authError = '';
-
-                // Vérifier s'il y a un utilisateur connecté
-                const { data: { session } } = await this.supabaseClient.auth.getSession();
-                if (session) {
-                    this.isAuthenticated = true;
-                    this.currentUser = session.user;
-                    await this.loadUserDecks();
-                }
-
-                // Écouter les changements d'authentification
-                this.supabaseClient.auth.onAuthStateChange((event, session) => {
-                    if (session) {
-                        this.isAuthenticated = true;
-                        this.currentUser = session.user;
-                        this.loadUserDecks();
-                    } else {
-                        this.isAuthenticated = false;
-                        this.currentUser = null;
-                        this.userDecks = [];
-                    }
-                });
-
+                
+                console.log('✅ Supabase configuré avec succès');
             } catch (error) {
-                console.error('Erreur de configuration Supabase:', error);
-                this.authError = `Erreur de connexion: ${error.message}`;
-                this.isConnected = false;
+                this.handleError(error, 'Configuration Supabase');
+            } finally {
+                this.authLoading = false;
             }
         },
 
         // === AUTHENTIFICATION ===
+        
         async login() {
-            if (!this.loginForm.email || !this.loginForm.password) {
-                this.authError = 'Veuillez remplir tous les champs';
+            if (!this.store) {
+                this.handleError(new Error('Application non initialisée'), 'Connexion');
                 return;
             }
 
-            this.authLoading = true;
-            this.authError = '';
-
             try {
-                const { data, error } = await this.supabaseClient.auth.signInWithPassword({
-                    email: this.loginForm.email,
-                    password: this.loginForm.password
-                });
-
-                if (error) throw error;
-
-                this.authSuccess = 'Connexion réussie !';
+                this.authLoading = true;
+                this.authError = '';
+                
+                await this.store.login(
+                    this.loginForm.email,
+                    this.loginForm.password
+                );
+                
                 this.loginForm = { email: '', password: '' };
-
+                console.log('✅ Connexion réussie');
+                
             } catch (error) {
-                console.error('Erreur de connexion:', error);
-                this.authError = error.message;
+                this.handleError(error, 'Connexion');
             } finally {
                 this.authLoading = false;
             }
         },
 
         async register() {
-            if (!this.registerForm.email || !this.registerForm.password || !this.registerForm.confirmPassword) {
-                this.authError = 'Veuillez remplir tous les champs';
+            if (!this.store) {
+                this.handleError(new Error('Application non initialisée'), 'Inscription');
                 return;
             }
 
             if (this.registerForm.password !== this.registerForm.confirmPassword) {
-                this.authError = 'Les mots de passe ne correspondent pas';
+                this.handleError(new Error('Les mots de passe ne correspondent pas'), 'Inscription');
                 return;
             }
-
-            if (this.registerForm.password.length < 6) {
-                this.authError = 'Le mot de passe doit contenir au moins 6 caractères';
-                return;
-            }
-
-            this.authLoading = true;
-            this.authError = '';
 
             try {
-                const { data, error } = await this.supabaseClient.auth.signUp({
-                    email: this.registerForm.email,
-                    password: this.registerForm.password
-                });
-
-                if (error) throw error;
-
-                this.authSuccess = 'Compte créé avec succès ! Vérifiez votre email pour confirmer votre compte.';
+                this.authLoading = true;
+                this.authError = '';
+                
+                await this.store.register(
+                    this.registerForm.email,
+                    this.registerForm.password,
+                    this.registerForm.confirmPassword
+                );
+                
                 this.registerForm = { email: '', password: '', confirmPassword: '' };
-
+                this.authMode = 'login';
+                this.authSuccess = 'Inscription réussie ! Vous pouvez maintenant vous connecter.';
+                
+                console.log('✅ Inscription réussie');
+                
             } catch (error) {
-                console.error('Erreur d\'inscription:', error);
-                this.authError = error.message;
+                this.handleError(error, 'Inscription');
             } finally {
                 this.authLoading = false;
             }
         },
 
         async logout() {
+            if (!this.store) {
+                this.handleError(new Error('Application non initialisée'), 'Déconnexion');
+                return;
+            }
+
             try {
-                const { error } = await this.supabaseClient.auth.signOut();
-                if (error) throw error;
-
-                this.currentView = 'decks';
-                this.currentDeck = null;
-
+                await this.store.logout();
+                this.authSuccess = 'Déconnexion réussie !';
+                console.log('✅ Déconnexion réussie');
             } catch (error) {
-                console.error('Erreur de déconnexion:', error);
+                this.handleError(error, 'Déconnexion');
             }
         },
 
         // === GESTION DES DECKS ===
-        async loadUserDecks() {
-            this.decksLoading = true;
-            try {
-                const { data, error } = await this.supabaseClient
-                    .from('decks')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-                this.userDecks = data;
-            } catch (error) {
-                console.error('Erreur lors du chargement des decks:', error);
-            } finally {
-                this.decksLoading = false;
-            }
-        },
-
+        
         async createDeck() {
-            if (!this.newDeckName.trim()) return;
+            if (!this.store) {
+                this.handleError(new Error('Application non initialisée'), 'Création de deck');
+                return;
+            }
 
-            this.deckLoading = true;
+            if (!this.newDeckName.trim()) {
+                this.handleError(new Error('Le nom du deck est requis'), 'Création de deck');
+                return;
+            }
+
             try {
-                const { data, error } = await this.supabaseClient
-                    .from('decks')
-                    .insert([
-                        {
-                            name: this.newDeckName.trim(),
-                            user_id: this.currentUser.id,
-                            cards: {}
-                        }
-                    ])
-                    .select();
-
-                if (error) throw error;
-
-                this.userDecks.unshift(data[0]);
+                this.deckLoading = true;
+                this.authError = '';
+                
+                await this.store.createDeck(this.newDeckName.trim());
+                
                 this.newDeckName = '';
                 this.showCreateDeck = false;
-
+                this.authSuccess = 'Deck créé avec succès !';
+                
+                console.log('✅ Deck créé avec succès');
+                
             } catch (error) {
-                console.error('Erreur lors de la création du deck:', error);
+                this.handleError(error, 'Création de deck');
             } finally {
                 this.deckLoading = false;
             }
         },
 
         async saveDeck() {
-            if (!this.currentDeck) return;
+            if (!this.store || !this.currentDeck) {
+                this.handleError(new Error('Deck non disponible'), 'Sauvegarde');
+                return;
+            }
 
-            this.deckLoading = true;
             try {
-                const { error } = await this.supabaseClient
-                    .from('decks')
-                    .update({
-                        cards: this.currentDeck.cards,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', this.currentDeck.id);
-
-                if (error) throw error;
-
-                // Mettre à jour le deck dans la liste
-                const deckIndex = this.userDecks.findIndex(d => d.id === this.currentDeck.id);
-                if (deckIndex !== -1) {
-                    this.userDecks[deckIndex] = { ...this.currentDeck };
-                }
-
+                this.deckLoading = true;
+                this.authError = '';
+                
+                await this.store.saveDeck(this.currentDeck);
                 this.authSuccess = 'Deck sauvegardé !';
-                setTimeout(() => { this.authSuccess = ''; }, 3000);
-
+                
+                console.log('✅ Deck sauvegardé avec succès');
+                
             } catch (error) {
-                console.error('Erreur lors de la sauvegarde:', error);
-                this.authError = 'Erreur lors de la sauvegarde';
+                this.handleError(error, 'Sauvegarde');
             } finally {
                 this.deckLoading = false;
             }
         },
 
-        openDeck(deck) {
-            this.currentDeck = { ...deck };
-            this.currentView = 'deck-editor';
+        async openDeck(deck) {
+            if (!this.store) {
+                this.handleError(new Error('Application non initialisée'), 'Ouverture de deck');
+                return;
+            }
+
+            try {
+                this.deckLoading = true;
+                this.authError = '';
+                
+                await this.store.openDeck(deck);
+                console.log('✅ Deck ouvert avec succès');
+                
+            } catch (error) {
+                this.handleError(error, 'Ouverture de deck');
+            } finally {
+                this.deckLoading = false;
+            }
         },
 
         goBackToDecks() {
-            this.currentView = 'decks';
-            this.currentDeck = null;
+            try {
+                this.currentView = 'decks';
+                this.currentDeck = null;
+                this.searchQuery = '';
+                this.searchResults = [];
+                this.bulkAddText = '';
+            } catch (error) {
+                console.warn('Erreur lors du retour aux decks:', error);
+            }
         },
 
         // === RECHERCHE DE CARTES ===
+        
         async searchCards() {
-            if (!this.searchQuery.trim()) {
+            if (!this.store) {
+                console.warn('Store non disponible pour la recherche');
+                return;
+            }
+
+            if (!this.searchQuery || this.searchQuery.length < 2) {
                 this.searchResults = [];
                 return;
             }
 
-            // Debounce
-            if (this.searchTimeout) {
-                clearTimeout(this.searchTimeout);
-            }
-
-            this.searchTimeout = setTimeout(async () => {
+            try {
                 this.searchLoading = true;
-                try {
-                    const response = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(this.searchQuery)}`);
-                    const data = await response.json();
+                await this.store.searchCards(this.searchQuery);
+            } catch (error) {
+                this.handleError(error, 'Recherche de cartes');
+                this.searchResults = [];
+            } finally {
+                this.searchLoading = false;
+            }
+        },
 
-                    if (data.data) {
-                        this.searchResults = data.data.slice(0, 20); // Limiter à 20 résultats
+        async addCardToDeck(card) {
+            if (!this.store || !this.currentDeck) {
+                this.handleError(new Error('Deck non disponible'), 'Ajout de carte');
+                return;
+            }
 
-                        // Mettre en cache
-                        data.data.forEach(card => {
-                            this.cardCache[card.id] = card;
-                        });
-                    } else {
-                        this.searchResults = [];
-                    }
-                } catch (error) {
-                    console.error('Erreur de recherche:', error);
-                    this.searchResults = [];
-                } finally {
-                    this.searchLoading = false;
+            try {
+                await this.store.addCardToDeck(card, 1);
+                console.log(`✅ ${card.name} ajoutée au deck`);
+            } catch (error) {
+                this.handleError(error, 'Ajout de carte');
+            }
+        },
+
+        async addCardToDeckById(cardId) {
+            if (!this.store || !this.currentDeck) {
+                this.handleError(new Error('Deck non disponible'), 'Ajout de carte');
+                return;
+            }
+
+            try {
+                const card = this.store.cardCache.get(cardId);
+                if (card) {
+                    await this.store.addCardToDeck(card, 1);
+                } else {
+                    throw new Error('Carte non trouvée dans le cache');
                 }
-            }, 500);
-        },
-
-        addCardToDeck(card) {
-            if (!this.currentDeck) return;
-
-            if (!this.currentDeck.cards) {
-                this.currentDeck.cards = {};
-            }
-
-            this.cardCache[card.id] = card;
-
-            if (this.currentDeck.cards[card.id]) {
-                this.currentDeck.cards[card.id]++;
-            } else {
-                this.currentDeck.cards[card.id] = 1;
+            } catch (error) {
+                this.handleError(error, 'Ajout de carte');
             }
         },
 
-        addCardToDeckById(cardId) {
-            if (!this.currentDeck || !this.currentDeck.cards) return;
-
-            if (this.currentDeck.cards[cardId]) {
-                this.currentDeck.cards[cardId]++;
+        async removeCardFromDeck(cardId) {
+            if (!this.store || !this.currentDeck) {
+                this.handleError(new Error('Deck non disponible'), 'Suppression de carte');
+                return;
             }
-        },
 
-        removeCardFromDeck(cardId) {
-            if (!this.currentDeck || !this.currentDeck.cards || !this.currentDeck.cards[cardId]) return;
-
-            this.currentDeck.cards[cardId]--;
-            if (this.currentDeck.cards[cardId] <= 0) {
-                delete this.currentDeck.cards[cardId];
+            try {
+                const currentQuantity = this.currentDeck.cards[cardId] || 0;
+                this.store.setCardQuantity(cardId, currentQuantity - 1);
+            } catch (error) {
+                this.handleError(error, 'Suppression de carte');
             }
         },
 
         async processBulkAdd() {
-            if (!this.bulkAddText.trim()) return;
-
-            this.bulkLoading = true;
-            const lines = this.bulkAddText.split('\n');
-
-            for (const line of lines) {
-                const match = line.trim().match(/^(\d+)x?\s+(.+)$/);
-                if (match) {
-                    const quantity = parseInt(match[1]);
-                    const cardName = match[2].trim();
-
-                    try {
-                        const response = await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`);
-                        const card = await response.json();
-
-                        if (!card.id) continue;
-
-                        this.cardCache[card.id] = card;
-
-                        if (!this.currentDeck.cards) {
-                            this.currentDeck.cards = {};
-                        }
-
-                        if (this.currentDeck.cards[card.id]) {
-                            this.currentDeck.cards[card.id] += quantity;
-                        } else {
-                            this.currentDeck.cards[card.id] = quantity;
-                        }
-
-                        // Petit délai pour éviter de surcharger l'API
-                        await new Promise(resolve => setTimeout(resolve, 100));
-
-                    } catch (error) {
-                        console.error(`Erreur pour ${cardName}:`, error);
-                    }
-                }
+            if (!this.store || !this.currentDeck) {
+                this.handleError(new Error('Deck non disponible'), 'Ajout en bloc');
+                return;
             }
 
-            this.bulkAddText = '';
-            this.bulkLoading = false;
+            if (!this.bulkAddText.trim()) {
+                this.handleError(new Error('Liste de cartes vide'), 'Ajout en bloc');
+                return;
+            }
+
+            try {
+                this.bulkLoading = true;
+                this.authError = '';
+                
+                await this.store.processBulkAdd(this.bulkAddText);
+                
+                this.bulkAddText = '';
+                this.authSuccess = 'Cartes ajoutées avec succès !';
+                
+                console.log('✅ Cartes ajoutées en bloc avec succès');
+                
+            } catch (error) {
+                this.handleError(error, 'Ajout en bloc');
+            } finally {
+                this.bulkLoading = false;
+            }
         },
 
-        // === UTILITAIRES ===
+        // === ACTIONS AVANCÉES ===
+        
+        async duplicateDeck(deck) {
+            if (!this.store) {
+                this.handleError(new Error('Application non initialisée'), 'Duplication de deck');
+                return;
+            }
+
+            try {
+                this.deckLoading = true;
+                this.authError = '';
+                
+                const newName = `${deck.name} (copie)`;
+                const newDeck = await this.store.createDeck(newName);
+                
+                if (newDeck && deck.cards) {
+                    newDeck.cards = { ...deck.cards };
+                    await this.store.saveDeck(newDeck);
+                }
+                
+                this.authSuccess = 'Deck dupliqué avec succès !';
+                console.log('✅ Deck dupliqué avec succès');
+                
+            } catch (error) {
+                this.handleError(error, 'Duplication de deck');
+            } finally {
+                this.deckLoading = false;
+            }
+        },
+
+        async exportDeck() {
+            if (!this.currentDeck || !this.store) {
+                this.handleError(new Error('Aucun deck à exporter'), 'Export');
+                return;
+            }
+
+            try {
+                const exportText = this.store.deckService.exportDeckToText(
+                    this.currentDeck,
+                    this.store.cardCache.getAll()
+                );
+                
+                const blob = new Blob([exportText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${this.currentDeck.name}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                this.authSuccess = 'Deck exporté avec succès !';
+                
+            } catch (error) {
+                this.handleError(error, 'Export de deck');
+            }
+        },
+
+        async copyDeckToClipboard() {
+            if (!this.currentDeck || !this.store) {
+                this.handleError(new Error('Aucun deck à copier'), 'Copie');
+                return;
+            }
+
+            try {
+                const exportText = this.store.deckService.exportDeckToText(
+                    this.currentDeck,
+                    this.store.cardCache.getAll()
+                );
+                
+                await navigator.clipboard.writeText(exportText);
+                this.authSuccess = 'Liste copiée dans le presse-papiers !';
+                
+            } catch (error) {
+                this.handleError(error, 'Copie vers presse-papiers');
+            }
+        },
+
+        // === FONCTIONS UTILITAIRES ===
+        
         getCardById(cardId) {
-            return this.cardCache[cardId] || null;
+            try {
+                if (!this.store?.cardCache) return null;
+                return this.store.cardCache.get(cardId);
+            } catch (error) {
+                console.warn('Erreur getCardById:', error);
+                return null;
+            }
         },
 
         getTotalCards() {
-            if (!this.currentDeck || !this.currentDeck.cards) return 0;
-            return Object.values(this.currentDeck.cards).reduce((sum, quantity) => sum + quantity, 0);
+            try {
+                if (!this.currentDeck?.cards) return 0;
+                return Object.values(this.currentDeck.cards).reduce((sum, qty) => sum + qty, 0);
+            } catch (error) {
+                console.warn('Erreur getTotalCards:', error);
+                return 0;
+            }
         },
 
         getTotalCardsFromDeckData(cardsData) {
-            if (!cardsData) return 0;
-            return Object.values(cardsData).reduce((sum, quantity) => sum + quantity, 0);
+            try {
+                if (!cardsData || typeof cardsData !== 'object') return 0;
+                return Object.values(cardsData).reduce((sum, qty) => sum + (Number(qty) || 0), 0);
+            } catch (error) {
+                console.warn('Erreur getTotalCardsFromDeckData:', error);
+                return 0;
+            }
         },
 
         getCreatureCount() {
-            if (!this.currentDeck || !this.currentDeck.cards) return 0;
-            return Object.entries(this.currentDeck.cards).reduce((count, [cardId, quantity]) => {
-                const card = this.getCardById(cardId);
-                if (card && card.type_line && card.type_line.includes('Creature')) {
-                    return count + quantity;
-                }
-                return count;
-            }, 0);
+            try {
+                if (!this.currentDeck?.cards || !this.store?.cardCache) return 0;
+                
+                return Object.entries(this.currentDeck.cards).reduce((count, [cardId, quantity]) => {
+                    const card = this.store.cardCache.get(cardId);
+                    if (card?.type_line?.includes('Creature')) {
+                        return count + quantity;
+                    }
+                    return count;
+                }, 0);
+            } catch (error) {
+                console.warn('Erreur getCreatureCount:', error);
+                return 0;
+            }
         },
 
         getSpellCount() {
-            if (!this.currentDeck || !this.currentDeck.cards) return 0;
-            return Object.entries(this.currentDeck.cards).reduce((count, [cardId, quantity]) => {
-                const card = this.getCardById(cardId);
-                if (card && card.type_line &&
-                    (card.type_line.includes('Instant') ||
-                        card.type_line.includes('Sorcery') ||
-                        card.type_line.includes('Enchantment') ||
-                        card.type_line.includes('Artifact')) &&
-                    !card.type_line.includes('Land')) {
-                    return count + quantity;
-                }
-                return count;
-            }, 0);
+            try {
+                if (!this.currentDeck?.cards || !this.store?.cardCache) return 0;
+                
+                return Object.entries(this.currentDeck.cards).reduce((count, [cardId, quantity]) => {
+                    const card = this.store.cardCache.get(cardId);
+                    if (card?.type_line && (card.type_line.includes('Instant') || card.type_line.includes('Sorcery'))) {
+                        return count + quantity;
+                    }
+                    return count;
+                }, 0);
+            } catch (error) {
+                console.warn('Erreur getSpellCount:', error);
+                return 0;
+            }
         },
 
         getLandCount() {
-            if (!this.currentDeck || !this.currentDeck.cards) return 0;
-            return Object.entries(this.currentDeck.cards).reduce((count, [cardId, quantity]) => {
-                const card = this.getCardById(cardId);
-                if (card && card.type_line && card.type_line.includes('Land')) {
-                    return count + quantity;
-                }
-                return count;
-            }, 0);
+            try {
+                if (!this.currentDeck?.cards || !this.store?.cardCache) return 0;
+                
+                return Object.entries(this.currentDeck.cards).reduce((count, [cardId, quantity]) => {
+                    const card = this.store.cardCache.get(cardId);
+                    if (card?.type_line?.includes('Land')) {
+                        return count + quantity;
+                    }
+                    return count;
+                }, 0);
+            } catch (error) {
+                console.warn('Erreur getLandCount:', error);
+                return 0;
+            }
         },
 
-        formatDate(dateString) {
-            return new Date(dateString).toLocaleDateString('fr-FR');
+        formatRelativeDate(dateString) {
+            try {
+                if (!dateString) return 'Date inconnue';
+                if (window.Helpers?.formatRelativeDate) {
+                    return window.Helpers.formatRelativeDate(dateString);
+                }
+                return new Date(dateString).toLocaleDateString('fr-FR');
+            } catch (error) {
+                console.warn('Erreur formatRelativeDate:', error);
+                return 'Date invalide';
+            }
+        }
+    },
+
+    // === COMPUTED PROPERTIES ===
+    computed: {
+        deckRecommendations() {
+            try {
+                if (!this.currentDeck?.cards || !this.store?.cardCache) {
+                    return [];
+                }
+
+                const recommendations = [];
+                const totalCards = this.getTotalCards();
+                const creatures = this.getCreatureCount();
+                const lands = this.getLandCount();
+                
+                if (totalCards < 60) {
+                    recommendations.push({
+                        type: 'warning',
+                        message: `Votre deck contient ${totalCards} cartes. Un deck Standard doit contenir au minimum 60 cartes.`
+                    });
+                } else if (totalCards > 100) {
+                    recommendations.push({
+                        type: 'info',
+                        message: `Votre deck contient ${totalCards} cartes. Considérez réduire pour optimiser la consistance.`
+                    });
+                }
+                
+                const landRatio = totalCards > 0 ? (lands / totalCards) * 100 : 0;
+                if (landRatio < 30) {
+                    recommendations.push({
+                        type: 'suggestion',
+                        message: `Vous avez ${landRatio.toFixed(1)}% de terrains. Considérez ajouter plus de terrains (33-40% recommandé).`
+                    });
+                } else if (landRatio > 50) {
+                    recommendations.push({
+                        type: 'warning',
+                        message: `Vous avez ${landRatio.toFixed(1)}% de terrains. C'est peut-être trop pour un deck agressif.`
+                    });
+                }
+                
+                const creatureRatio = totalCards > 0 ? (creatures / totalCards) * 100 : 0;
+                if (creatureRatio < 15 && totalCards > 30) {
+                    recommendations.push({
+                        type: 'info',
+                        message: `Vous avez peu de créatures (${creatureRatio.toFixed(1)}%). Assurez-vous d'avoir d'autres conditions de victoire.`
+                    });
+                }
+                
+                return recommendations;
+            } catch (error) {
+                console.warn('Erreur dans deckRecommendations:', error);
+                return [];
+            }
         }
     }
+
 }).mount('#app');
