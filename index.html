@@ -372,10 +372,10 @@ CREATE POLICY "Users can delete own decks" ON decks
                                         :title="`Cliquer pour ajouter ${card.name} au deck`"
                                     >
                                         <img 
-                                            :src="card.image_uris?.small || '/api/placeholder/50/70'" 
+                                            :src="card.image_uris?.small || 'assets/images/placeholder.png'"  
                                             :alt="card.name"
                                             class="card-image"
-                                            @error="$event.target.src='/api/placeholder/50/70'"
+                                            @error="$event.target.src='assets/images/placeholder.png'" 
                                         />
                                         <div class="card-info">
                                             <div class="card-name">{{ card.name }}</div>
