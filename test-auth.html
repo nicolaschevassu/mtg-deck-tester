@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test MTG Auth</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            margin: 0;
+            padding: 20px;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header" style="text-align: center; color: white; margin-bottom: 30px; padding: 20px;">
+        <h1>🎴 MTG Deck Builder - Test Auth</h1>
+    </div>
+
+    <div id="app">
+        <!-- Debug complet -->
+        <div style="background: #fff3cd; color: #856404; padding: 15px; margin: 10px 0; border-radius: 5px;">
+            <strong>DEBUG COMPLET:</strong><br>
+            supabaseConfigured: {{ supabaseConfigured }}<br>
+            isAuthenticated: {{ isAuthenticated }}<br>
+            authMode: {{ authMode }}<br>
+            loginForm: {{ JSON.stringify(loginForm) }}<br>
+            Condition auth: {{ supabaseConfigured && !isAuthenticated }}
+        </div>
+
+        <!-- Section d'authentification -->
+        <div v-if="supabaseConfigured && !isAuthenticated"
+            style="background: white; border: 3px solid green; padding: 40px; margin: 20px auto; max-width: 500px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <h2 style="color: #2a5298; text-align: center; margin-bottom: 30px;">🔐 Test Authentification</h2>
+
+            <!-- Test simple d'abord -->
+            <div style="background: #e7f3ff; padding: 15px; margin-bottom: 20px; border-radius: 5px; color: #0066cc;">
+                <p><strong>Test de base :</strong></p>
+                <p>authMode actuel: {{ authMode }}</p>
+                <button @click="authMode = 'login'"
+                    style="background: #2a5298; color: white; border: none; padding: 10px; margin: 5px; border-radius: 3px; cursor: pointer;">
+                    Mode Login
+                </button>
+                <button @click="authMode = 'register'"
+                    style="background: #2a5298; color: white; border: none; padding: 10px; margin: 5px; border-radius: 3px; cursor: pointer;">
+                    Mode Register
+                </button>
+            </div>
+
+            <!-- Onglets -->
+            <div style="display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee;">
+                <button @click="authMode = 'login'"
+                    style="background: none; border: none; padding: 15px 25px; cursor: pointer; font-size: 16px; flex: 1; border-bottom: 3px solid transparent;"
+                    :style="{ 
+                        color: authMode === 'login' ? '#2a5298' : '#666', 
+                        'border-bottom-color': authMode === 'login' ? '#2a5298' : 'transparent',
+                        'font-weight': authMode === 'login' ? 'bold' : 'normal'
+                    }">
+                    Connexion
+                </button>
+                <button @click="authMode = 'register'"
+                    style="background: none; border: none; padding: 15px 25px; cursor: pointer; font-size: 16px; flex: 1; border-bottom: 3px solid transparent;"
+                    :style="{ 
+                        color: authMode === 'register' ? '#2a5298' : '#666', 
+                        'border-bottom-color': authMode === 'register' ? '#2a5298' : 'transparent',
+                        'font-weight': authMode === 'register' ? 'bold' : 'normal'
+                    }">
+                    Inscription
+                </button>
+            </div>
+
+            <!-- Formulaires -->
+            <div v-if="authMode === 'login'" style="color: black;">
+                <h3 style="color: #2a5298;">📝 Formulaire de Connexion</h3>
+                <form @submit.prevent="testLogin">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #555;">Email
+                            :</label>
+                        <input type="email" v-model="loginForm.email" required placeholder="test@example.com"
+                            style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;" />
+                        <small style="color: #666;">Valeur: {{ loginForm.email }}</small>
+                    </div>
+                    <div style="margin-bottom: 25px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #555;">Mot de passe
+                            :</label>
+                        <input type="password" v-model="loginForm.password" required placeholder="••••••••"
+                            style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;" />
+                        <small style="color: #666;">Longueur: {{ loginForm.password.length }}</small>
+                    </div>
+                    <button type="submit"
+                        style="width: 100%; background: #2a5298; color: white; border: none; padding: 15px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                        Test de Connexion
+                    </button>
+                </form>
+            </div>
+
+            <div v-if="authMode === 'register'" style="color: black;">
+                <h3 style="color: #2a5298;">📝 Formulaire d'Inscription</h3>
+                <form @submit.prevent="testRegister">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #555;">Email
+                            :</label>
+                        <input type="email" v-model="registerForm.email" required placeholder="nouveau@example.com"
+                            style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;" />
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #555;">Mot de passe
+                            :</label>
+                        <input type="password" v-model="registerForm.password" required minlength="6"
+                            placeholder="••••••••"
+                            style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;" />
+                    </div>
+                    <div style="margin-bottom: 25px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #555;">Confirmer
+                            :</label>
+                        <input type="password" v-model="registerForm.confirmPassword" required placeholder="••••••••"
+                            style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;" />
+                    </div>
+                    <button type="submit"
+                        style="width: 100%; background: #2a5298; color: white; border: none; padding: 15px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                        Test d'Inscription
+                    </button>
+                </form>
+            </div>
+
+            <!-- Messages -->
+            <div v-if="testMessage"
+                style="background: #d4edda; color: #155724; padding: 15px; margin-top: 20px; border-radius: 5px; font-weight: bold;">
+                {{ testMessage }}
+            </div>
+        </div>
+
+        <!-- Si pas configuré -->
+        <div v-if="!supabaseConfigured"
+            style="background: white; padding: 40px; margin: 20px auto; max-width: 500px; border-radius: 10px; color: black;">
+            <h2>Configuration Supabase</h2>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: bold;">URL Supabase :</label>
+                <input type="url" v-model="supabaseConfig.url" placeholder="https://votre-projet.supabase.co"
+                    style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;" />
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: bold;">Clé publique :</label>
+                <input type="text" v-model="supabaseConfig.anonKey"
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;" />
+            </div>
+            <button @click="configureSupabase"
+                style="background: #2a5298; color: white; border: none; padding: 15px 30px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                Configurer
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    // Configuration Supabase
+                    supabaseConfigured: true, // Forcé à true pour test
+                    supabaseConfig: {
+                        url: '',
+                        anonKey: ''
+                    },
+                    supabaseClient: null,
+                    isConnected: false,
+
+                    // Authentification
+                    isAuthenticated: false,
+                    authMode: 'login', // Valeur par défaut explicite
+                    authLoading: false,
+                    authError: '',
+                    authSuccess: '',
+
+                    // Formulaires
+                    loginForm: {
+                        email: '',
+                        password: ''
+                    },
+                    registerForm: {
+                        email: '',
+                        password: '',
+                        confirmPassword: ''
+                    },
+
+                    // Test
+                    testMessage: ''
+                };
+            },
+
+            methods: {
+                configureSupabase() {
+                    if (!this.supabaseConfig.url || !this.supabaseConfig.anonKey) {
+                        alert('Veuillez remplir tous les champs');
+                        return;
+                    }
+
+                    try {
+                        this.supabaseClient = supabase.createClient(
+                            this.supabaseConfig.url,
+                            this.supabaseConfig.anonKey
+                        );
+                        this.supabaseConfigured = true;
+                        this.isConnected = true;
+                        this.testMessage = 'Configuration Supabase réussie !';
+                    } catch (error) {
+                        alert('Erreur de configuration: ' + error.message);
+                    }
+                },
+
+                testLogin() {
+                    this.testMessage = `Test connexion avec: ${this.loginForm.email}`;
+                    console.log('Test login:', this.loginForm);
+                },
+
+                testRegister() {
+                    if (this.registerForm.password !== this.registerForm.confirmPassword) {
+                        this.testMessage = 'Les mots de passe ne correspondent pas';
+                        return;
+                    }
+                    this.testMessage = `Test inscription avec: ${this.registerForm.email}`;
+                    console.log('Test register:', this.registerForm);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

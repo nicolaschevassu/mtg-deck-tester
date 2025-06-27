@@ -1,0 +1,16 @@
+{
+  "name": "mtg-deck-builder",
+  "version": "1.0.0",
+  "description": "Application web pour créer et gérer vos decks Magic The Gathering",
+  "main": "index.html",
+  "scripts": {
+    "start": "live-server --port=3000 --open=/index.html",
+    "dev": "live-server --port=3000 --open=/index.html --watch=assets",
+    "build": "echo 'Aucune étape de build nécessaire pour ce projet'"
+  },
+  "keywords": ["magic", "mtg", "deck", "vue", "supabase", "cards"],
+  "author": "Votre Nom",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {}
+}

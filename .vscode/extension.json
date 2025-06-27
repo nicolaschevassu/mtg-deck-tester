@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "ritwickdey.liveserver",
+        "octref.vetur",
+        "ecmel.vscode-html-css",
+        "xabikos.javascriptsnippets",
+        "formulahendry.auto-rename-tag",
+        "esbenp.prettier-vscode",
+        "rangav.vscode-thunder-client"
+    ]
+}
