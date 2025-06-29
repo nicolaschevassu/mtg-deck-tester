@@ -12,11 +12,11 @@
     --info-color: #17a2b8;
     --light-color: #f8f9fa;
     --dark-color: #343a40;
-    
+
     --border-radius: 8px;
     --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --transition: all 0.3s ease;
-    
+
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -89,8 +89,13 @@ body {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .loading {
@@ -669,49 +674,170 @@ body {
     margin-top: 1rem;
 }
 
+/* === LISTE COMPACTE DES CARTES === */
+.deck-card-entry-compact {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+    min-height: 40px;
+}
+
+.deck-card-entry-compact:hover {
+    background-color: #f8f9fa;
+}
+
+.deck-card-entry-compact:last-child {
+    border-bottom: none;
+}
+
+/* Quantité à gauche */
+.card-quantity {
+    width: 30px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+}
+
+.quantity-display {
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 12px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+}
+
+/* Nom de la carte au centre */
+.card-name-compact {
+    flex: 1;
+    margin-left: 0.75rem;
+    font-weight: 500;
+    color: var(--dark-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Contrôles discrets à droite */
+.quantity-controls-compact {
+    display: flex;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.deck-card-entry-compact:hover .quantity-controls-compact {
+    opacity: 1;
+}
+
+.quantity-btn-compact {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--primary-color);
+    background: white;
+    color: var(--primary-color);
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quantity-btn-compact:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* === TOOLTIP D'IMAGE === */
+.card-tooltip {
+    position: fixed;
+    z-index: 9999;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    padding: 0.5rem;
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.2s ease;
+    max-width: 250px;
+}
+
+.card-tooltip.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.card-tooltip img {
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+    display: block;
+}
+
+/* Responsive pour mobile */
+@media (max-width: 768px) {
+    .quantity-controls-compact {
+        opacity: 1;
+        /* Toujours visible sur mobile */
+    }
+
+    .card-tooltip {
+        max-width: 200px;
+    }
+}
+
 /* === RESPONSIVE === */
 @media (max-width: 768px) {
     .container {
         padding: 1rem;
     }
-    
+
     .header {
         padding: 1.5rem 1rem;
     }
-    
+
     .header h1 {
         font-size: 2rem;
     }
-    
+
     .deck-editor {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .user-info {
         flex-direction: column;
         align-items: stretch;
         text-align: center;
     }
-    
+
     .deck-header {
         flex-direction: column;
         align-items: stretch;
         text-align: center;
     }
-    
+
     .deck-stats {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .form-actions {
         flex-direction: column;
     }
-    
+
     .tab-buttons {
         flex-direction: column;
     }
-    
+
     .deck-list {
         grid-template-columns: 1fr;
     }
@@ -721,11 +847,11 @@ body {
     .deck-stats {
         grid-template-columns: 1fr;
     }
-    
+
     .deck-quick-stats {
         justify-content: center;
     }
-    
+
     .user-actions {
         flex-wrap: wrap;
         justify-content: center;

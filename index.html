@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MTG Deck Builder</title>
-    
+
     <!-- CDN externes -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
+
 <body>
     <!-- Header -->
     <div class="header">
@@ -32,32 +34,22 @@
             <div v-if="!loading && !supabaseConfigured" class="config-form">
                 <h2>⚙️ Configuration Supabase</h2>
                 <div class="config-notice">
-                    <strong>Configuration requise :</strong> Veuillez configurer votre projet Supabase pour commencer à utiliser l'application.
+                    <strong>Configuration requise :</strong> Veuillez configurer votre projet Supabase pour commencer à
+                    utiliser l'application.
                 </div>
 
                 <div class="form-group">
                     <label for="supabase-url">URL du projet Supabase :</label>
-                    <input 
-                        type="url" 
-                        id="supabase-url" 
-                        v-model="supabaseConfig.url"
-                        placeholder="https://votre-projet.supabase.co"
-                    />
+                    <input type="url" id="supabase-url" v-model="supabaseConfig.url"
+                        placeholder="https://votre-projet.supabase.co" />
                 </div>
                 <div class="form-group">
                     <label for="supabase-key">Clé publique (anon key) :</label>
-                    <input 
-                        type="text" 
-                        id="supabase-key" 
-                        v-model="supabaseConfig.anonKey"
-                        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                    />
+                    <input type="text" id="supabase-key" v-model="supabaseConfig.anonKey"
+                        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
                 </div>
-                <button 
-                    @click="configureSupabase" 
-                    class="btn" 
-                    :disabled="authLoading || !supabaseConfig.url || !supabaseConfig.anonKey"
-                >
+                <button @click="configureSupabase" class="btn"
+                    :disabled="authLoading || !supabaseConfig.url || !supabaseConfig.anonKey">
                     {{ authLoading ? 'Connexion en cours...' : 'Se connecter à Supabase' }}
                 </button>
 
@@ -65,43 +57,45 @@
                 <div style="margin-top: 2rem;">
                     <h3>📋 Instructions de configuration :</h3>
                     <ol style="margin-left: 1.5rem; line-height: 1.8;">
-                        <li>Créez un compte gratuit sur <a href="https://supabase.com" target="_blank" rel="noopener">supabase.com</a></li>
+                        <li>Créez un compte gratuit sur <a href="https://supabase.com" target="_blank"
+                                rel="noopener">supabase.com</a></li>
                         <li>Créez un nouveau projet</li>
                         <li>Allez dans <strong>Settings → API</strong></li>
                         <li>Copiez l'<strong>URL du projet</strong> et la <strong>clé "anon/public"</strong></li>
                         <li>Exécutez ce script SQL dans l'onglet <strong>SQL Editor</strong> :</li>
                     </ol>
                     <div class="code-block">
-CREATE TABLE decks (
-  id BIGSERIAL PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  cards JSONB DEFAULT '{}',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+                        CREATE TABLE decks (
+                        id BIGSERIAL PRIMARY KEY,
+                        user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+                        name TEXT NOT NULL,
+                        cards JSONB DEFAULT '{}',
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                        );
 
--- Activer RLS (Row Level Security)
-ALTER TABLE decks ENABLE ROW LEVEL SECURITY;
+                        -- Activer RLS (Row Level Security)
+                        ALTER TABLE decks ENABLE ROW LEVEL SECURITY;
 
--- Politique pour que les utilisateurs ne voient que leurs decks
-CREATE POLICY "Users can view own decks" ON decks
-  FOR SELECT USING (auth.uid() = user_id);
+                        -- Politique pour que les utilisateurs ne voient que leurs decks
+                        CREATE POLICY "Users can view own decks" ON decks
+                        FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own decks" ON decks
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+                        CREATE POLICY "Users can insert own decks" ON decks
+                        FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own decks" ON decks
-  FOR UPDATE USING (auth.uid() = user_id);
+                        CREATE POLICY "Users can update own decks" ON decks
+                        FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete own decks" ON decks
-  FOR DELETE USING (auth.uid() = user_id);
+                        CREATE POLICY "Users can delete own decks" ON decks
+                        FOR DELETE USING (auth.uid() = user_id);
                     </div>
                 </div>
             </div>
 
             <!-- 2. Statut de connexion -->
-            <div v-if="!loading && supabaseConfigured" class="connection-status" :class="{ connected: isConnected, disconnected: !isConnected }">
+            <div v-if="!loading && supabaseConfigured" class="connection-status"
+                :class="{ connected: isConnected, disconnected: !isConnected }">
                 {{ isConnected ? '✅ Connecté à Supabase' : '❌ Connexion à Supabase échouée' }}
             </div>
 
@@ -110,20 +104,13 @@ CREATE POLICY "Users can delete own decks" ON decks
                 <h2 style="text-align: center; margin-bottom: 1.5rem; color: var(--primary-color);">
                     🔐 Authentification
                 </h2>
-                
+
                 <div class="tab-buttons">
-                    <button 
-                        class="tab-button" 
-                        :class="{ active: authMode === 'login' }"
-                        @click="authMode = 'login'"
-                    >
+                    <button class="tab-button" :class="{ active: authMode === 'login' }" @click="authMode = 'login'">
                         Connexion
                     </button>
-                    <button 
-                        class="tab-button" 
-                        :class="{ active: authMode === 'register' }"
-                        @click="authMode = 'register'"
-                    >
+                    <button class="tab-button" :class="{ active: authMode === 'register' }"
+                        @click="authMode = 'register'">
                         Inscription
                     </button>
                 </div>
@@ -132,23 +119,13 @@ CREATE POLICY "Users can delete own decks" ON decks
                 <form v-if="authMode === 'login'" @submit.prevent="login">
                     <div class="form-group">
                         <label for="email">Email :</label>
-                        <input 
-                            type="email" 
-                            id="email" 
-                            v-model="loginForm.email" 
-                            required
-                            placeholder="votre@email.com"
-                        />
+                        <input type="email" id="email" v-model="loginForm.email" required
+                            placeholder="votre@email.com" />
                     </div>
                     <div class="form-group">
                         <label for="password">Mot de passe :</label>
-                        <input 
-                            type="password" 
-                            id="password" 
-                            v-model="loginForm.password" 
-                            required
-                            placeholder="••••••••"
-                        />
+                        <input type="password" id="password" v-model="loginForm.password" required
+                            placeholder="••••••••" />
                     </div>
                     <button type="submit" class="btn" :disabled="authLoading">
                         {{ authLoading ? 'Connexion...' : 'Se connecter' }}
@@ -159,34 +136,18 @@ CREATE POLICY "Users can delete own decks" ON decks
                 <form v-if="authMode === 'register'" @submit.prevent="register">
                     <div class="form-group">
                         <label for="reg-email">Email :</label>
-                        <input 
-                            type="email" 
-                            id="reg-email" 
-                            v-model="registerForm.email" 
-                            required
-                            placeholder="votre@email.com"
-                        />
+                        <input type="email" id="reg-email" v-model="registerForm.email" required
+                            placeholder="votre@email.com" />
                     </div>
                     <div class="form-group">
                         <label for="reg-password">Mot de passe (minimum 6 caractères) :</label>
-                        <input 
-                            type="password" 
-                            id="reg-password" 
-                            v-model="registerForm.password" 
-                            required
-                            placeholder="••••••••"
-                            minlength="6"
-                        />
+                        <input type="password" id="reg-password" v-model="registerForm.password" required
+                            placeholder="••••••••" minlength="6" />
                     </div>
                     <div class="form-group">
                         <label for="confirm-password">Confirmer le mot de passe :</label>
-                        <input 
-                            type="password" 
-                            id="confirm-password" 
-                            v-model="registerForm.confirmPassword" 
-                            required
-                            placeholder="••••••••"
-                        />
+                        <input type="password" id="confirm-password" v-model="registerForm.confirmPassword" required
+                            placeholder="••••••••" />
                     </div>
                     <button type="submit" class="btn" :disabled="authLoading">
                         {{ authLoading ? 'Inscription...' : 'S\'inscrire' }}
@@ -209,14 +170,16 @@ CREATE POLICY "Users can delete own decks" ON decks
                     <div>
                         <strong>👋 Bienvenue, {{ currentUser?.email }} !</strong>
                         <div style="font-size: 0.9rem; color: var(--secondary-color); margin-top: 0.25rem;">
-                            {{ userDecks.length }} deck{{ userDecks.length > 1 ? 's' : '' }} créé{{ userDecks.length > 1 ? 's' : '' }}
+                            {{ userDecks.length }} deck{{ userDecks.length > 1 ? 's' : '' }} créé{{ userDecks.length > 1
+                            ? 's' : '' }}
                         </div>
                     </div>
                     <div class="user-actions">
                         <button @click="exportDeck" v-if="currentDeck" class="btn btn-small" title="Exporter le deck">
                             📄 Exporter
                         </button>
-                        <button @click="copyDeckToClipboard" v-if="currentDeck" class="btn btn-small" title="Copier la liste">
+                        <button @click="copyDeckToClipboard" v-if="currentDeck" class="btn btn-small"
+                            title="Copier la liste">
                             📋 Copier
                         </button>
                         <button @click="logout" class="btn btn-secondary">Déconnexion</button>
@@ -229,9 +192,11 @@ CREATE POLICY "Users can delete own decks" ON decks
                         <div>
                             <h2>📚 Mes Decks</h2>
                             <div class="deck-quick-stats">
-                                <span class="stat">{{ userDecks.length }} deck{{ userDecks.length > 1 ? 's' : '' }}</span>
+                                <span class="stat">{{ userDecks.length }} deck{{ userDecks.length > 1 ? 's' : ''
+                                    }}</span>
                                 <span class="stat" v-if="userDecks.length > 0">
-                                    {{ userDecks.reduce((total, deck) => total + getTotalCardsFromDeckData(deck.cards), 0) }} cartes au total
+                                    {{ userDecks.reduce((total, deck) => total + getTotalCardsFromDeckData(deck.cards),
+                                    0) }} cartes au total
                                 </span>
                             </div>
                         </div>
@@ -243,18 +208,13 @@ CREATE POLICY "Users can delete own decks" ON decks
                     </div>
 
                     <!-- Formulaire de création de deck -->
-                    <div v-if="showCreateDeck" style="margin-bottom: 2rem; padding: 1.5rem; background: var(--light-color); border-radius: var(--border-radius); border: 2px solid var(--primary-color);">
+                    <div v-if="showCreateDeck"
+                        style="margin-bottom: 2rem; padding: 1.5rem; background: var(--light-color); border-radius: var(--border-radius); border: 2px solid var(--primary-color);">
                         <h3>✨ Créer un nouveau deck</h3>
                         <div class="form-group" style="margin-bottom: 1rem;">
                             <label for="deck-name">Nom du deck :</label>
-                            <input 
-                                type="text" 
-                                id="deck-name" 
-                                v-model="newDeckName" 
-                                placeholder="Mon super deck"
-                                @keyup.enter="createDeck"
-                                maxlength="100"
-                            />
+                            <input type="text" id="deck-name" v-model="newDeckName" placeholder="Mon super deck"
+                                @keyup.enter="createDeck" maxlength="100" />
                         </div>
                         <div class="form-actions">
                             <button @click="createDeck" class="btn" :disabled="!newDeckName.trim() || deckLoading">
@@ -273,16 +233,13 @@ CREATE POLICY "Users can delete own decks" ON decks
 
                     <!-- Liste des decks -->
                     <div v-if="!decksLoading" class="deck-list">
-                        <div 
-                            v-for="deck in userDecks" 
-                            :key="deck.id" 
-                            class="deck-card"
-                        >
+                        <div v-for="deck in userDecks" :key="deck.id" class="deck-card">
                             <div class="deck-info" @click="openDeck(deck)">
                                 <h3>{{ deck.name }}</h3>
                                 <div class="deck-quick-stats">
                                     <span class="stat">{{ getTotalCardsFromDeckData(deck.cards) }} cartes</span>
-                                    <span class="stat">{{ formatRelativeDate(deck.updated_at || deck.created_at) }}</span>
+                                    <span class="stat">{{ formatRelativeDate(deck.updated_at || deck.created_at)
+                                        }}</span>
                                 </div>
                                 <!-- Aperçu des couleurs du deck - TEMPORAIREMENT DÉSACTIVÉ -->
                                 <!-- 
@@ -307,7 +264,7 @@ CREATE POLICY "Users can delete own decks" ON decks
                                 </button>
                             </div>
                         </div>
-                        
+
                         <!-- Message si aucun deck -->
                         <div v-if="userDecks.length === 0" class="empty-state">
                             <h3>🎴 Aucun deck trouvé</h3>
@@ -347,36 +304,25 @@ CREATE POLICY "Users can delete own decks" ON decks
                         <!-- Panel de gauche: Recherche et ajout -->
                         <div class="editor-panel search-panel">
                             <h3>🔍 Recherche de cartes</h3>
-                            
+
                             <!-- Recherche de cartes -->
                             <div class="card-search">
                                 <div class="form-group">
-                                    <input 
-                                        type="text" 
-                                        v-model="searchQuery" 
-                                        @input="searchCards"
-                                        placeholder="Rechercher une carte Magic..."
-                                    />
+                                    <input type="text" v-model="searchQuery" @input="searchCards"
+                                        placeholder="Rechercher une carte Magic..." />
                                 </div>
-                                
+
                                 <div v-if="searchLoading" class="loading">
                                     🔍 Recherche en cours...
                                 </div>
-                                
+
                                 <div v-if="searchResults.length > 0" class="search-results">
-                                    <div 
-                                        v-for="card in searchResults" 
-                                        :key="card.id"
-                                        class="card-result"
+                                    <div v-for="card in searchResults" :key="card.id" class="card-result"
                                         @click="addCardToDeck(card)"
-                                        :title="`Cliquer pour ajouter ${card.name} au deck`"
-                                    >
-                                        <img 
-                                            :src="card.image_uris?.small || 'assets/images/placeholder.png'"  
-                                            :alt="card.name"
-                                            class="card-image"
-                                            @error="$event.target.src='assets/images/placeholder.png'" 
-                                        />
+                                        :title="`Cliquer pour ajouter ${card.name} au deck`">
+                                        <img :src="card.image_uris?.small || 'assets/images/placeholder.png'"
+                                            :alt="card.name" class="card-image"
+                                            @error="$event.target.src='assets/images/placeholder.png'" />
                                         <div class="card-info">
                                             <div class="card-name">{{ card.name }}</div>
                                             <div class="card-type">{{ card.type_line }}</div>
@@ -384,8 +330,9 @@ CREATE POLICY "Users can delete own decks" ON decks
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <div v-if="!searchLoading && searchQuery && searchResults.length === 0" class="no-results">
+
+                                <div v-if="!searchLoading && searchQuery && searchResults.length === 0"
+                                    class="no-results">
                                     😕 Aucune carte trouvée pour "{{ searchQuery }}"
                                 </div>
                             </div>
@@ -394,13 +341,12 @@ CREATE POLICY "Users can delete own decks" ON decks
                             <div class="bulk-add">
                                 <h4>📝 Ajout en liste</h4>
                                 <div class="form-group">
-                                    <textarea 
-                                        v-model="bulkAddText"
+                                    <textarea v-model="bulkAddText"
                                         placeholder="Format : 4x Lightning Bolt&#10;2x Counterspell&#10;1x Black Lotus&#10;&#10;ou simplement :&#10;Lightning Bolt&#10;Counterspell"
-                                        rows="8"
-                                    ></textarea>
+                                        rows="8"></textarea>
                                 </div>
-                                <button @click="processBulkAdd" class="btn" :disabled="bulkLoading || !bulkAddText.trim()">
+                                <button @click="processBulkAdd" class="btn"
+                                    :disabled="bulkLoading || !bulkAddText.trim()">
                                     {{ bulkLoading ? '⏳ Ajout en cours...' : '📋 Ajouter les cartes' }}
                                 </button>
                             </div>
@@ -409,7 +355,7 @@ CREATE POLICY "Users can delete own decks" ON decks
                         <!-- Panel de droite: Liste du deck -->
                         <div class="editor-panel deck-panel">
                             <h3>📚 Liste du deck</h3>
-                            
+
                             <!-- Statistiques détaillées -->
                             <div class="deck-stats">
                                 <div class="stat">
@@ -433,12 +379,8 @@ CREATE POLICY "Users can delete own decks" ON decks
                             <!-- Recommandations -->
                             <div v-if="deckRecommendations.length > 0" class="deck-recommendations">
                                 <h4>💡 Recommandations</h4>
-                                <div 
-                                    v-for="rec in deckRecommendations" 
-                                    :key="rec.message"
-                                    class="recommendation"
-                                    :class="rec.type"
-                                >
+                                <div v-for="rec in deckRecommendations" :key="rec.message" class="recommendation"
+                                    :class="rec.type">
                                     {{ rec.message }}
                                 </div>
                             </div>
@@ -448,40 +390,45 @@ CREATE POLICY "Users can delete own decks" ON decks
                                 ⏳ Chargement des cartes du deck...
                             </div>
 
-                            <!-- Liste des cartes du deck -->
+                            <!-- Liste des cartes du deck - VERSION COMPACTE -->
                             <div class="deck-card-list">
-                                <div 
-                                    v-for="{ cardId, quantity, card } in filteredDeckCards" 
-                                    :key="cardId"
-                                    class="deck-card-entry"
-                                >
-                                    <div class="card-details">
-                                        <div class="card-name">
-                                            <strong>{{ quantity }}x</strong> {{ card.name }}
-                                        </div>
-                                        <div class="card-meta">
-                                            <span>{{ card.type_line }}</span>
-                                            <span v-if="card.mana_cost" class="mana-cost">
-                                                {{ card.mana_cost }}
-                                            </span>
-                                        </div>
+                                <div v-for="{ cardId, quantity, card } in filteredDeckCards" :key="cardId"
+                                    class="deck-card-entry-compact" @mouseenter="showCardImage($event, card)"
+                                    @mouseleave="hideCardImage">
+                                    <!-- Quantité -->
+                                    <div class="card-quantity">
+                                        <span class="quantity-display">{{ quantity }}</span>
                                     </div>
-                                    <div class="quantity-controls">
-                                        <button @click="removeCardFromDeck(cardId)" class="quantity-btn" title="Retirer une carte">
+
+                                    <!-- Nom de la carte -->
+                                    <div class="card-name-compact">
+                                        {{ card.name }}
+                                    </div>
+
+                                    <!-- Contrôles discrets -->
+                                    <div class="quantity-controls-compact">
+                                        <button @click="removeCardFromDeck(cardId)" class="quantity-btn-compact"
+                                            title="Retirer une carte">
                                             −
                                         </button>
-                                        <span class="quantity">{{ quantity }}</span>
-                                        <button @click="addCardToDeckById(cardId)" class="quantity-btn" title="Ajouter une carte">
+                                        <button @click="addCardToDeckById(cardId)" class="quantity-btn-compact"
+                                            title="Ajouter une carte">
                                             +
                                         </button>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Message si deck vide -->
                                 <div v-if="!deckLoading && filteredDeckCards.length === 0" class="empty-deck">
                                     <h4>🎴 Votre deck est vide</h4>
-                                    <p>Utilisez la recherche pour ajouter des cartes ou importez une liste existante !</p>
+                                    <p>Utilisez la recherche pour ajouter des cartes ou importez une liste existante !
+                                    </p>
                                 </div>
+                            </div>
+
+                            <!-- Tooltip pour l'image de carte -->
+                            <div id="card-tooltip" class="card-tooltip">
+                                <img id="card-tooltip-image" src="" alt="" />
                             </div>
                         </div>
                     </div>
@@ -508,19 +455,20 @@ CREATE POLICY "Users can delete own decks" ON decks
     <!-- 1. Utilitaires (sans dépendances) -->
     <script src="assets/js/utils/helpers.js"></script>
     <script src="assets/js/utils/cache.js"></script>
-    
+
     <!-- 2. Configuration (dépend des utilitaires) -->
     <script src="assets/js/config/supabase.js"></script>
-    
+
     <!-- 3. Services (dépendent de config et utilitaires) -->
     <script src="assets/js/services/scryfall.service.js"></script>
     <script src="assets/js/services/auth.service.js"></script>
     <script src="assets/js/services/deck.service.js"></script>
-    
+
     <!-- 4. Store (dépend de tous les services) -->
     <script src="assets/js/store/store.js"></script>
-    
+
     <!-- 5. Application principale (dépend du store) -->
     <script src="assets/js/app.js"></script>
 </body>
+
 </html>

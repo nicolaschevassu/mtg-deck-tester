@@ -10,7 +10,7 @@ createApp({
         return {
             // Store global
             store: null,
-            
+
             // État de l'interface
             loading: false,
             isInitialized: false,
@@ -24,7 +24,7 @@ createApp({
             authSuccess: '',
             currentView: 'decks',
             showCreateDeck: false,
-            
+
             // Formulaires d'authentification
             loginForm: {
                 email: '',
@@ -58,24 +58,24 @@ createApp({
 
     async mounted() {
         console.log('🚀 Initialisation de l\'application MTG Deck Builder');
-        
+
         try {
             this.loading = true;
-            
+
             // Vérifier que tous les services sont disponibles
             this.checkRequiredServices();
-            
+
             // Initialiser le store
             this.store = new AppStore();
             this.store.subscribe(this.updateLocalState.bind(this));
-            
+
             await this.store.initialize();
-            
+
             // Vérifier les méthodes
             this.checkRequiredMethods();
-            
+
             console.log('✅ Application initialisée avec succès');
-            
+
         } catch (error) {
             console.error('❌ Erreur lors de l\'initialisation:', error);
             this.authError = `Erreur d'initialisation: ${error.message}`;
@@ -86,19 +86,19 @@ createApp({
 
     methods: {
         // === VÉRIFICATIONS ET DIAGNOSTICS ===
-        
+
         checkRequiredServices() {
             const requiredServices = [
-                'SupabaseConfig', 'AuthService', 'DeckService', 
+                'SupabaseConfig', 'AuthService', 'DeckService',
                 'ScryfallService', 'AppStore', 'Helpers', 'CardCache'
             ];
-            
+
             const missing = requiredServices.filter(service => !window[service]);
-            
+
             if (missing.length > 0) {
                 throw new Error(`Services manquants: ${missing.join(', ')}`);
             }
-            
+
             console.log('✅ Tous les services requis sont disponibles');
         },
 
@@ -107,9 +107,9 @@ createApp({
                 'getTotalCardsFromDeckData', 'formatRelativeDate',
                 'getTotalCards', 'getCreatureCount', 'getSpellCount', 'getLandCount'
             ];
-            
+
             const missing = requiredMethods.filter(method => typeof this[method] !== 'function');
-            
+
             if (missing.length > 0) {
                 console.warn('⚠️ Méthodes manquantes:', missing);
             } else {
@@ -118,7 +118,7 @@ createApp({
         },
 
         // === SYNCHRONISATION ÉTAT ===
-        
+
         updateLocalState(newState) {
             if (!newState || typeof newState !== 'object') {
                 console.warn('updateLocalState: newState invalide', newState);
@@ -127,10 +127,10 @@ createApp({
 
             try {
                 Object.keys(newState).forEach(key => {
-                    const hasProperty = key in this || 
-                                      Object.prototype.hasOwnProperty.call(this, key) ||
-                                      (this.$data && key in this.$data);
-                    
+                    const hasProperty = key in this ||
+                        Object.prototype.hasOwnProperty.call(this, key) ||
+                        (this.$data && key in this.$data);
+
                     if (hasProperty) {
                         this[key] = newState[key];
                     }
@@ -157,13 +157,13 @@ createApp({
         },
 
         // === GESTION D'ERREURS ===
-        
+
         handleError(error, context = 'Opération') {
             console.error(`❌ Erreur dans ${context}:`, error);
-            
+
             const errorMessage = error.message || 'Erreur inconnue';
             this.authError = `${context}: ${errorMessage}`;
-            
+
             // Auto-effacement après 10 secondes
             setTimeout(() => {
                 if (this.authError === `${context}: ${errorMessage}`) {
@@ -173,7 +173,7 @@ createApp({
         },
 
         // === CONFIGURATION SUPABASE ===
-        
+
         async configureSupabase() {
             if (!this.supabaseConfig.url || !this.supabaseConfig.anonKey) {
                 this.handleError(new Error('URL et clé Supabase requis'), 'Configuration Supabase');
@@ -183,17 +183,17 @@ createApp({
             try {
                 this.authLoading = true;
                 this.authError = '';
-                
+
                 if (!this.store) {
                     this.handleError(new Error('Store non initialisé'), 'Configuration Supabase');
                     return;
                 }
-                
+
                 await this.store.configureSupabase(
                     this.supabaseConfig.url,
                     this.supabaseConfig.anonKey
                 );
-                
+
                 console.log('✅ Supabase configuré avec succès');
             } catch (error) {
                 this.handleError(error, 'Configuration Supabase');
@@ -203,7 +203,7 @@ createApp({
         },
 
         // === AUTHENTIFICATION ===
-        
+
         async login() {
             if (!this.store) {
                 this.handleError(new Error('Application non initialisée'), 'Connexion');
@@ -213,15 +213,15 @@ createApp({
             try {
                 this.authLoading = true;
                 this.authError = '';
-                
+
                 await this.store.login(
                     this.loginForm.email,
                     this.loginForm.password
                 );
-                
+
                 this.loginForm = { email: '', password: '' };
                 console.log('✅ Connexion réussie');
-                
+
             } catch (error) {
                 this.handleError(error, 'Connexion');
             } finally {
@@ -243,19 +243,19 @@ createApp({
             try {
                 this.authLoading = true;
                 this.authError = '';
-                
+
                 await this.store.register(
                     this.registerForm.email,
                     this.registerForm.password,
                     this.registerForm.confirmPassword
                 );
-                
+
                 this.registerForm = { email: '', password: '', confirmPassword: '' };
                 this.authMode = 'login';
                 this.authSuccess = 'Inscription réussie ! Vous pouvez maintenant vous connecter.';
-                
+
                 console.log('✅ Inscription réussie');
-                
+
             } catch (error) {
                 this.handleError(error, 'Inscription');
             } finally {
@@ -279,7 +279,7 @@ createApp({
         },
 
         // === GESTION DES DECKS ===
-        
+
         async createDeck() {
             if (!this.store) {
                 this.handleError(new Error('Application non initialisée'), 'Création de deck');
@@ -294,15 +294,15 @@ createApp({
             try {
                 this.deckLoading = true;
                 this.authError = '';
-                
+
                 await this.store.createDeck(this.newDeckName.trim());
-                
+
                 this.newDeckName = '';
                 this.showCreateDeck = false;
                 this.authSuccess = 'Deck créé avec succès !';
-                
+
                 console.log('✅ Deck créé avec succès');
-                
+
             } catch (error) {
                 this.handleError(error, 'Création de deck');
             } finally {
@@ -319,12 +319,12 @@ createApp({
             try {
                 this.deckLoading = true;
                 this.authError = '';
-                
+
                 await this.store.saveDeck(this.currentDeck);
                 this.authSuccess = 'Deck sauvegardé !';
-                
+
                 console.log('✅ Deck sauvegardé avec succès');
-                
+
             } catch (error) {
                 this.handleError(error, 'Sauvegarde');
             } finally {
@@ -341,10 +341,10 @@ createApp({
             try {
                 this.deckLoading = true;
                 this.authError = '';
-                
+
                 await this.store.openDeck(deck);
                 console.log('✅ Deck ouvert avec succès');
-                
+
             } catch (error) {
                 this.handleError(error, 'Ouverture de deck');
             } finally {
@@ -365,7 +365,7 @@ createApp({
         },
 
         // === RECHERCHE DE CARTES ===
-        
+
         async searchCards() {
             if (!this.store) {
                 console.warn('Store non disponible pour la recherche');
@@ -448,14 +448,14 @@ createApp({
             try {
                 this.bulkLoading = true;
                 this.authError = '';
-                
+
                 await this.store.processBulkAdd(this.bulkAddText);
-                
+
                 this.bulkAddText = '';
                 this.authSuccess = 'Cartes ajoutées avec succès !';
-                
+
                 console.log('✅ Cartes ajoutées en bloc avec succès');
-                
+
             } catch (error) {
                 this.handleError(error, 'Ajout en bloc');
             } finally {
@@ -464,7 +464,7 @@ createApp({
         },
 
         // === ACTIONS AVANCÉES ===
-        
+
         async duplicateDeck(deck) {
             if (!this.store) {
                 this.handleError(new Error('Application non initialisée'), 'Duplication de deck');
@@ -474,18 +474,18 @@ createApp({
             try {
                 this.deckLoading = true;
                 this.authError = '';
-                
+
                 const newName = `${deck.name} (copie)`;
                 const newDeck = await this.store.createDeck(newName);
-                
+
                 if (newDeck && deck.cards) {
                     newDeck.cards = { ...deck.cards };
                     await this.store.saveDeck(newDeck);
                 }
-                
+
                 this.authSuccess = 'Deck dupliqué avec succès !';
                 console.log('✅ Deck dupliqué avec succès');
-                
+
             } catch (error) {
                 this.handleError(error, 'Duplication de deck');
             } finally {
@@ -504,7 +504,7 @@ createApp({
                     this.currentDeck,
                     this.store.cardCache.getAll()
                 );
-                
+
                 const blob = new Blob([exportText], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -514,9 +514,9 @@ createApp({
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                
+
                 this.authSuccess = 'Deck exporté avec succès !';
-                
+
             } catch (error) {
                 this.handleError(error, 'Export de deck');
             }
@@ -533,17 +533,17 @@ createApp({
                     this.currentDeck,
                     this.store.cardCache.getAll()
                 );
-                
+
                 await navigator.clipboard.writeText(exportText);
                 this.authSuccess = 'Liste copiée dans le presse-papiers !';
-                
+
             } catch (error) {
                 this.handleError(error, 'Copie vers presse-papiers');
             }
         },
 
         // === FONCTIONS UTILITAIRES ===
-        
+
         getCardById(cardId) {
             try {
                 if (!this.store?.cardCache) return null;
@@ -577,7 +577,7 @@ createApp({
         getCreatureCount() {
             try {
                 if (!this.currentDeck?.cards || !this.store?.cardCache) return 0;
-                
+
                 return Object.entries(this.currentDeck.cards).reduce((count, [cardId, quantity]) => {
                     const card = this.store.cardCache.get(cardId);
                     if (card?.type_line?.includes('Creature')) {
@@ -594,7 +594,7 @@ createApp({
         getSpellCount() {
             try {
                 if (!this.currentDeck?.cards || !this.store?.cardCache) return 0;
-                
+
                 return Object.entries(this.currentDeck.cards).reduce((count, [cardId, quantity]) => {
                     const card = this.store.cardCache.get(cardId);
                     if (card?.type_line && (card.type_line.includes('Instant') || card.type_line.includes('Sorcery'))) {
@@ -611,7 +611,7 @@ createApp({
         getLandCount() {
             try {
                 if (!this.currentDeck?.cards || !this.store?.cardCache) return 0;
-                
+
                 return Object.entries(this.currentDeck.cards).reduce((count, [cardId, quantity]) => {
                     const card = this.store.cardCache.get(cardId);
                     if (card?.type_line?.includes('Land')) {
@@ -636,16 +636,78 @@ createApp({
                 console.warn('Erreur formatRelativeDate:', error);
                 return 'Date invalide';
             }
+        },
+
+        showCardImage(event, card) {
+            const tooltip = document.getElementById('card-tooltip');
+            const tooltipImage = document.getElementById('card-tooltip-image');
+
+            if (!tooltip || !tooltipImage || !card) return;
+
+            // Image de la carte ou placeholder
+            const imageUrl = card.image_uris?.normal ||
+                card.image_uris?.large ||
+                card.image_uris?.small ||
+                'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI3OSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI3OSIgZmlsbD0iI2YwZjBmMCIgc3Ryb2tlPSIjY2NjIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSIxMDAiIHk9IjE0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE2IiBmaWxsPSIjNjY2Ij5NVEc8L3RleHQ+PC9zdmc+';
+
+            tooltipImage.src = imageUrl;
+            tooltipImage.alt = card.name;
+
+            // Position du tooltip
+            this.positionTooltip(event, tooltip);
+
+            // Afficher le tooltip
+            tooltip.classList.add('show');
+        },
+
+        /**
+         * Cacher l'image de la carte
+         */
+        hideCardImage() {
+            const tooltip = document.getElementById('card-tooltip');
+            if (tooltip) {
+                tooltip.classList.remove('show');
+            }
+        },
+
+        /**
+         * Positionner le tooltip selon la position de la souris
+         */
+        positionTooltip(event, tooltip) {
+            const margin = 20;
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            let left = event.clientX + margin;
+            let top = event.clientY + margin;
+
+            // Éviter que le tooltip sorte de l'écran à droite
+            if (left + tooltipRect.width > viewportWidth) {
+                left = event.clientX - tooltipRect.width - margin;
+            }
+
+            // Éviter que le tooltip sorte de l'écran en bas
+            if (top + tooltipRect.height > viewportHeight) {
+                top = event.clientY - tooltipRect.height - margin;
+            }
+
+            // S'assurer que le tooltip ne sort pas en haut ou à gauche
+            left = Math.max(margin, left);
+            top = Math.max(margin, top);
+
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
         }
     },
 
     // === COMPUTED PROPERTIES ===
-    computed: {    
+    computed: {
         filteredDeckCards() {
             if (!this.currentDeck?.cards || !this.store?.cardCache) {
                 return [];
             }
-    
+
             return Object.entries(this.currentDeck.cards)
                 .map(([cardId, quantity]) => {
                     const card = this.store.cardCache.get(cardId);
@@ -653,7 +715,7 @@ createApp({
                 })
                 .filter(Boolean); // Enlève les null
         },
-        
+
         deckRecommendations() {
             try {
                 if (!this.currentDeck?.cards || !this.store?.cardCache) {
@@ -664,7 +726,7 @@ createApp({
                 const totalCards = this.getTotalCards();
                 const creatures = this.getCreatureCount();
                 const lands = this.getLandCount();
-                
+
                 if (totalCards < 60) {
                     recommendations.push({
                         type: 'warning',
@@ -676,7 +738,7 @@ createApp({
                         message: `Votre deck contient ${totalCards} cartes. Considérez réduire pour optimiser la consistance.`
                     });
                 }
-                
+
                 const landRatio = totalCards > 0 ? (lands / totalCards) * 100 : 0;
                 if (landRatio < 30) {
                     recommendations.push({
@@ -689,7 +751,7 @@ createApp({
                         message: `Vous avez ${landRatio.toFixed(1)}% de terrains. C'est peut-être trop pour un deck agressif.`
                     });
                 }
-                
+
                 const creatureRatio = totalCards > 0 ? (creatures / totalCards) * 100 : 0;
                 if (creatureRatio < 15 && totalCards > 30) {
                     recommendations.push({
@@ -697,7 +759,7 @@ createApp({
                         message: `Vous avez peu de créatures (${creatureRatio.toFixed(1)}%). Assurez-vous d'avoir d'autres conditions de victoire.`
                     });
                 }
-                
+
                 return recommendations;
             } catch (error) {
                 console.warn('Erreur dans deckRecommendations:', error);
