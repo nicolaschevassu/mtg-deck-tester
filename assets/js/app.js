@@ -5,7 +5,7 @@
 
 const { createApp } = Vue;
 
-createApp({
+const app = createApp({
     data() {
         return {
             // Store global
@@ -52,7 +52,29 @@ createApp({
             searchResults: [],
             searchLoading: false,
             bulkAddText: '',
-            bulkLoading: false
+            bulkLoading: false,
+
+            // Playtester Commander
+            // État du jeu
+            playerLife: 40,
+            currentTurn: 1,
+            commanderTax: 0,
+            commander: null,
+
+            // Zones de jeu
+            playerHand: [],
+            playerBattlefield: [],
+            playerGraveyard: [],
+            playerExile: [],
+            playerLibrary: [],
+            commandZone: [],
+
+            // Compteurs
+            manaPool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },
+            lastRoll: { d6: null, d20: null },
+
+            // Placeholder pour cartes
+            cardPlaceholder: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjE2OCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjE2OCIgZmlsbD0iIzM0NDk1ZSIgc3Ryb2tlPSIjMmMzZTUwIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0id2hpdGUiPk1URzwvdGV4dD48L3N2Zz4='
         };
     },
 
@@ -698,6 +720,261 @@ createApp({
 
             tooltip.style.left = `${left}px`;
             tooltip.style.top = `${top}px`;
+        },
+        /**
+    * Démarrer le playtest d'un deck
+    */
+        startPlaytest() {
+            if (!this.currentDeck || !this.currentDeck.cards) {
+                this.handleError(new Error('Aucun deck sélectionné'), 'Démarrage playtest');
+                return;
+            }
+
+            try {
+                this.currentView = 'playtester';
+                this.setupCommanderGame();
+                this.authSuccess = 'Playtest démarré ! Bon jeu ! 🎮';
+
+                setTimeout(() => {
+                    this.authSuccess = '';
+                }, 3000);
+
+            } catch (error) {
+                this.handleError(error, 'Démarrage playtest');
+            }
+        },
+
+        /**
+         * Configurer une partie Commander
+         */
+        setupCommanderGame() {
+            this.resetGameState();
+
+            // Préparer les cartes du deck
+            const allCards = [];
+            Object.entries(this.currentDeck.cards).forEach(([cardId, quantity]) => {
+                const card = this.store.cardCache.get(cardId);
+                if (card) {
+                    // Ajouter les copies de chaque carte
+                    for (let i = 0; i < quantity; i++) {
+                        allCards.push({
+                            ...card,
+                            instanceId: `${cardId}_${i}`, // ID unique pour chaque instance
+                            tapped: false,
+                            counters: 0
+                        });
+                    }
+                }
+            });
+
+            // Identifier le commandant (première legendary creature trouvée)
+            const commanderCard = allCards.find(card =>
+                card.type_line &&
+                (card.type_line.includes('Legendary Creature') ||
+                    card.type_line.includes('Legendary Planeswalker'))
+            );
+
+            if (commanderCard) {
+                this.commander = commanderCard;
+                this.commandZone = [commanderCard];
+
+                // Retirer le commandant du deck principal
+                const commanderIndex = allCards.findIndex(card =>
+                    card.instanceId === commanderCard.instanceId
+                );
+                if (commanderIndex > -1) {
+                    allCards.splice(commanderIndex, 1);
+                }
+            }
+
+            // Mélanger le deck et distribuer la main de départ
+            this.playerLibrary = this.shuffleArray(allCards);
+            this.drawStartingHand();
+        },
+
+        /**
+         * Réinitialiser l'état du jeu
+         */
+        resetGameState() {
+            this.playerLife = 40;
+            this.currentTurn = 1;
+            this.commanderTax = 0;
+            this.playerHand = [];
+            this.playerBattlefield = [];
+            this.playerGraveyard = [];
+            this.playerExile = [];
+            this.playerLibrary = [];
+            this.commandZone = [];
+            this.manaPool = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+            this.lastRoll = { d6: null, d20: null };
+        },
+
+        /**
+         * Distribuer la main de départ (7 cartes)
+         */
+        drawStartingHand() {
+            for (let i = 0; i < 7; i++) {
+                this.drawCard();
+            }
+        },
+
+        /**
+         * Piocher une carte
+         */
+        drawCard() {
+            if (this.playerLibrary.length > 0) {
+                const card = this.playerLibrary.pop();
+                this.playerHand.push(card);
+            }
+        },
+
+        /**
+         * Mélanger la bibliothèque
+         */
+        shuffleLibrary() {
+            this.playerLibrary = this.shuffleArray(this.playerLibrary);
+            this.authSuccess = 'Bibliothèque mélangée !';
+            setTimeout(() => this.authSuccess = '', 2000);
+        },
+
+        /**
+         * Mélanger un tableau (algorithme Fisher-Yates)
+         */
+        shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        },
+
+        /**
+         * Engager/dégager une carte
+         */
+        tapCard(card) {
+            card.tapped = !card.tapped;
+        },
+
+        /**
+         * Menu contextuel pour cartes
+         */
+        cardContextMenu(card, event) {
+            // Ici on pourrait ajouter un menu pour ajouter des marqueurs, etc.
+            const action = prompt('Action:\n1 - Ajouter +1/+1\n2 - Retirer marqueur\n3 - Envoyer au cimetière');
+
+            switch (action) {
+                case '1':
+                    card.counters = (card.counters || 0) + 1;
+                    break;
+                case '2':
+                    card.counters = Math.max(0, (card.counters || 0) - 1);
+                    break;
+                case '3':
+                    this.moveCardToGraveyard(card);
+                    break;
+            }
+        },
+
+        /**
+         * Déplacer une carte vers le cimetière
+         */
+        moveCardToGraveyard(card) {
+            // Retirer de battlefield
+            const index = this.playerBattlefield.findIndex(c => c.instanceId === card.instanceId);
+            if (index > -1) {
+                this.playerBattlefield.splice(index, 1);
+                this.playerGraveyard.unshift(card); // Ajouter en haut du cimetière
+
+                // Si c'est le commandant, demander où l'envoyer
+                if (card.name === this.commander?.name) {
+                    const choice = confirm('Envoyer le commandant en command zone au lieu du cimetière ?');
+                    if (choice) {
+                        this.playerGraveyard.shift(); // Retirer du cimetière
+                        this.commandZone = [{ ...card, tapped: false, counters: 0 }];
+                        this.commanderTax++;
+                    }
+                }
+            }
+        },
+
+        /**
+         * Changer les points de vie
+         */
+        changeLife(amount) {
+            this.playerLife += amount;
+            this.playerLife = Math.max(0, this.playerLife); // Pas en dessous de 0
+        },
+
+        /**
+         * Gérer le mana
+         */
+        changeMana(color, amount) {
+            this.manaPool[color] = Math.max(0, (this.manaPool[color] || 0) + amount);
+        },
+
+        clearManaPool() {
+            Object.keys(this.manaPool).forEach(color => {
+                this.manaPool[color] = 0;
+            });
+        },
+
+        /**
+         * Lancer un dé
+         */
+        rollDice(sides) {
+            const result = Math.floor(Math.random() * sides) + 1;
+            this.lastRoll[`d${sides}`] = result;
+
+            this.authSuccess = `🎲 D${sides}: ${result}`;
+            setTimeout(() => this.authSuccess = '', 3000);
+        },
+
+        /**
+         * Tour suivant
+         */
+        nextTurn() {
+            this.currentTurn++;
+
+            // Dégager toutes les cartes
+            this.playerBattlefield.forEach(card => {
+                card.tapped = false;
+            });
+
+            // Piocher une carte
+            this.drawCard();
+
+            this.authSuccess = `Tour ${this.currentTurn} - Dégagement et pioche !`;
+            setTimeout(() => this.authSuccess = '', 3000);
+        },
+
+        /**
+         * Reset complet
+         */
+        resetGame() {
+            if (confirm('Êtes-vous sûr de vouloir recommencer la partie ?')) {
+                this.setupCommanderGame();
+                this.authSuccess = 'Partie remise à zéro !';
+                setTimeout(() => this.authSuccess = '', 3000);
+            }
+        },
+
+        /**
+         * Sortir du playtester
+         */
+        exitPlaytest() {
+            if (confirm('Quitter le playtest et retourner à l\'éditeur ?')) {
+                this.currentView = 'deck-editor';
+                this.resetGameState();
+            }
+        },
+
+        /**
+         * Afficher détails d'une carte (on peut réutiliser votre logique existante)
+         */
+        showCardDetails(card) {
+            // Ici on pourrait ouvrir un modal avec les détails de la carte
+            console.log('Détails de carte:', card);
         }
     },
 
@@ -767,5 +1044,14 @@ createApp({
             }
         }
     }
+});
 
-}).mount('#app');
+// 🎯 ENREGISTRER LE COMPOSANT DRAGGABLE
+if (window.vuedraggable) {
+    app.component('draggable', window.vuedraggable);
+} else {
+    console.error('Vue Draggable non trouvé. Vérifiez que le CDN est chargé.');
+}
+
+// 🎯 MONTAGE DE L'APPLICATION
+app.mount('#app');

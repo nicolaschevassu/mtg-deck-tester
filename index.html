@@ -10,6 +10,9 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
+    <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://unpkg.com/vuedraggable@4.1.0/dist/vuedraggable.umd.min.js"></script>
+
     <!-- Styles -->
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
@@ -293,6 +296,10 @@
                             <button @click="saveDeck" class="btn" :disabled="deckLoading">
                                 {{ deckLoading ? 'Sauvegarde...' : '💾 Sauvegarder' }}
                             </button>
+                            <button @click="startPlaytest" class="btn btn-success"
+                                :disabled="!currentDeck || getTotalCards() === 0">
+                                🎮 Tester ce deck
+                            </button>
                             <button @click="goBackToDecks" class="btn btn-secondary">
                                 ← Retour
                             </button>
@@ -430,6 +437,185 @@
                             <div id="card-tooltip" class="card-tooltip">
                                 <img id="card-tooltip-image" src="" alt="" />
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vue: Playtester Commander -->
+                <div v-if="currentView === 'playtester' && currentDeck" class="playtester-container">
+                    <!-- En-tête du playtester -->
+                    <div class="playtester-header">
+                        <div class="deck-info">
+                            <h2>🎮 {{ currentDeck.name }} - Commander Playtest</h2>
+                            <div class="playtest-stats">
+                                <span class="stat">Vie: {{ playerLife }}/40</span>
+                                <span class="stat">Cartes en main: {{ playerHand.length }}</span>
+                                <span class="stat">Bibliothèque: {{ playerLibrary.length }}</span>
+                                <span class="stat">Tour: {{ currentTurn }}</span>
+                            </div>
+                        </div>
+                        <div class="playtester-actions">
+                            <button @click="drawCard" class="btn btn-small" :disabled="playerLibrary.length === 0">
+                                📚 Piocher
+                            </button>
+                            <button @click="shuffleLibrary" class="btn btn-small">
+                                🔀 Mélanger
+                            </button>
+                            <button @click="nextTurn" class="btn btn-small">
+                                ⏭️ Tour suivant
+                            </button>
+                            <button @click="resetGame" class="btn btn-secondary btn-small">
+                                🔄 Reset
+                            </button>
+                            <button @click="exitPlaytest" class="btn btn-secondary">
+                                ← Retour éditeur
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Interface de jeu principale -->
+                    <div class="playtester-board">
+                        <!-- Colonne gauche : Zones secondaires -->
+                        <div class="left-zones">
+                            <!-- Command Zone -->
+                            <div class="game-zone command-zone">
+                                <h4>⚡ Command Zone</h4>
+                                <div class="commander-info" v-if="commander">
+                                    <div class="commander-tax">Tax: +{{ commanderTax * 2 }}</div>
+                                </div>
+                                <draggable :list="commandZone" group="cards" class="card-zone" item-key="id">
+                                    <template #item="{ element: card }">
+                                        <div class="card-in-zone commander-card" @click="showCardDetails(card)">
+                                            <img :src="card.image_uris?.small || cardPlaceholder" :alt="card.name" />
+                                            <div class="card-name">{{ card.name }}</div>
+                                        </div>
+                                    </template>
+                                </draggable>
+                            </div>
+
+                            <!-- Graveyard -->
+                            <div class="game-zone graveyard">
+                                <h4>💀 Cimetière ({{ playerGraveyard.length }})</h4>
+                                <draggable :list="playerGraveyard" group="cards" class="card-zone graveyard-zone"
+                                    item-key="id">
+                                    <template #item="{ element: card }">
+                                        <div class="card-stacked" @click="showCardDetails(card)">
+                                            {{ card.name }}
+                                        </div>
+                                    </template>
+                                </draggable>
+                            </div>
+
+                            <!-- Exile -->
+                            <div class="game-zone exile">
+                                <h4>🚫 Exil ({{ playerExile.length }})</h4>
+                                <draggable :list="playerExile" group="cards" class="card-zone exile-zone" item-key="id">
+                                    <template #item="{ element: card }">
+                                        <div class="card-stacked" @click="showCardDetails(card)">
+                                            {{ card.name }}
+                                        </div>
+                                    </template>
+                                </draggable>
+                            </div>
+
+                            <!-- Library/Deck -->
+                            <div class="game-zone library">
+                                <h4>📚 Bibliothèque ({{ playerLibrary.length }})</h4>
+                                <div class="library-stack" @click="drawCard" v-if="playerLibrary.length > 0">
+                                    <div class="card-back">
+                                        <div class="deck-count">{{ playerLibrary.length }}</div>
+                                    </div>
+                                </div>
+                                <div v-else class="empty-library">Bibliothèque vide</div>
+                            </div>
+                        </div>
+
+                        <!-- Centre : Battlefield -->
+                        <div class="center-battlefield">
+                            <div class="game-zone battlefield">
+                                <h4>⚔️ Champ de bataille</h4>
+                                <draggable :list="playerBattlefield" group="cards" class="card-zone battlefield-zone"
+                                    item-key="id">
+                                    <template #item="{ element: card }">
+                                        <div class="card-in-battlefield" :class="{ tapped: card.tapped }"
+                                            @click="tapCard(card)" @contextmenu.prevent="cardContextMenu(card, $event)">
+                                            <img :src="card.image_uris?.normal || cardPlaceholder" :alt="card.name" />
+                                            <div class="card-overlay">
+                                                <div class="card-name">{{ card.name }}</div>
+                                                <div v-if="card.counters" class="card-counters">
+                                                    +{{ card.counters }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </draggable>
+                                <div v-if="playerBattlefield.length === 0" class="empty-battlefield">
+                                    Glissez vos cartes ici pour les jouer
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Droite : Compteurs & Contrôles -->
+                        <div class="right-controls">
+                            <!-- Compteurs de vie -->
+                            <div class="life-counter">
+                                <h4>❤️ Points de vie</h4>
+                                <div class="counter-display">
+                                    <button @click="changeLife(-1)" class="counter-btn">-</button>
+                                    <span class="life-value">{{ playerLife }}</span>
+                                    <button @click="changeLife(1)" class="counter-btn">+</button>
+                                </div>
+                                <div class="quick-life-changes">
+                                    <button @click="changeLife(-5)" class="btn btn-small">-5</button>
+                                    <button @click="changeLife(-10)" class="btn btn-small">-10</button>
+                                    <button @click="changeLife(5)" class="btn btn-small">+5</button>
+                                    <button @click="changeLife(10)" class="btn btn-small">+10</button>
+                                </div>
+                            </div>
+
+                            <!-- Compteurs de mana -->
+                            <div class="mana-counters">
+                                <h4>💎 Réserve de mana</h4>
+                                <div class="mana-pool">
+                                    <div v-for="color in ['W', 'U', 'B', 'R', 'G', 'C']" :key="color"
+                                        class="mana-color">
+                                        <div class="mana-symbol" :class="`mana-${color.toLowerCase()}`">{{ color }}
+                                        </div>
+                                        <div class="mana-controls">
+                                            <button @click="changeMana(color, -1)" class="mana-btn">-</button>
+                                            <span class="mana-count">{{ manaPool[color] || 0 }}</span>
+                                            <button @click="changeMana(color, 1)" class="mana-btn">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button @click="clearManaPool" class="btn btn-small">🧹 Vider réserve</button>
+                            </div>
+
+                            <!-- Dés virtuels -->
+                            <div class="dice-roller">
+                                <h4>🎲 Dés</h4>
+                                <div class="dice-options">
+                                    <button @click="rollDice(6)" class="btn btn-small">D6: {{ lastRoll.d6 || '?'
+                                        }}</button>
+                                    <button @click="rollDice(20)" class="btn btn-small">D20: {{ lastRoll.d20 || '?'
+                                        }}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main du joueur (en bas) -->
+                    <div class="player-hand-area">
+                        <div class="game-zone hand">
+                            <h4>✋ Main ({{ playerHand.length }} cartes)</h4>
+                            <draggable :list="playerHand" group="cards" class="card-zone hand-zone" item-key="id">
+                                <template #item="{ element: card }">
+                                    <div class="card-in-hand" @click="showCardDetails(card)">
+                                        <img :src="card.image_uris?.normal || cardPlaceholder" :alt="card.name" />
+                                        <div class="card-name-small">{{ card.name }}</div>
+                                    </div>
+                                </template>
+                            </draggable>
                         </div>
                     </div>
                 </div>
