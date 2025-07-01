@@ -73,6 +73,14 @@ const app = createApp({
             manaPool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },
             lastRoll: { d6: null, d20: null },
 
+            // Mulligan
+            openingHand: [],
+            mulliganCount: 0,
+            bottomOfLibrary: [],
+            exileFromMulligan: [],
+            draggedCard: null,
+            draggedIndex: null,
+
             // Placeholder pour cartes
             cardPlaceholder: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjE2OCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjE2OCIgZmlsbD0iIzM0NDk1ZSIgc3Ryb2tlPSIjMmMzZTUwIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0id2hpdGUiPk1URzwvdGV4dD48L3N2Zz4='
         };
@@ -975,6 +983,249 @@ const app = createApp({
         showCardDetails(card) {
             // Ici on pourrait ouvrir un modal avec les détails de la carte
             console.log('Détails de carte:', card);
+        },
+
+        /**
+     * Démarrer le playtest avec mulligan
+     */
+        startPlaytest() {
+            if (!this.currentDeck || !this.currentDeck.cards) {
+                this.handleError(new Error('Aucun deck sélectionné'), 'Démarrage playtest');
+                return;
+            }
+
+            try {
+                // Aller directement au mulligan au lieu du playtester
+                this.currentView = 'mulligan';
+                this.setupCommanderGame();
+
+            } catch (error) {
+                this.handleError(error, 'Démarrage playtest');
+            }
+        },
+
+        /**
+         * Configuration initiale pour Commander
+         */
+        setupCommanderGame() {
+            this.resetGameState();
+
+            // Préparer les cartes du deck
+            const allCards = [];
+            Object.entries(this.currentDeck.cards).forEach(([cardId, quantity]) => {
+                const card = this.store.cardCache.get(cardId);
+                if (card) {
+                    for (let i = 0; i < quantity; i++) {
+                        allCards.push({
+                            ...card,
+                            instanceId: `${cardId}_${i}`,
+                            tapped: false,
+                            counters: 0
+                        });
+                    }
+                }
+            });
+
+            // Identifier le commandant
+            const commanderCard = allCards.find(card =>
+                card.type_line &&
+                (card.type_line.includes('Legendary Creature') ||
+                    card.type_line.includes('Legendary Planeswalker'))
+            );
+
+            if (commanderCard) {
+                this.commander = commanderCard;
+                this.commandZone = [commanderCard];
+
+                const commanderIndex = allCards.findIndex(card =>
+                    card.instanceId === commanderCard.instanceId
+                );
+                if (commanderIndex > -1) {
+                    allCards.splice(commanderIndex, 1);
+                }
+            }
+
+            // Préparer la bibliothèque et tirer la main de départ
+            this.playerLibrary = this.shuffleArray(allCards);
+            this.drawOpeningHand();
+        },
+
+        /**
+         * Tirer la main de départ de 7 cartes
+         */
+        drawOpeningHand() {
+            this.openingHand = [];
+            for (let i = 0; i < 7; i++) {
+                if (this.playerLibrary.length > 0) {
+                    const card = this.playerLibrary.pop();
+                    this.openingHand.push(card);
+                }
+            }
+        },
+
+        /**
+         * Prendre un mulligan
+         */
+        takeMulligan() {
+            if (this.mulliganCount >= 7) {
+                alert('Vous ne pouvez pas prendre plus de 7 mulligans !');
+                return;
+            }
+
+            // Remettre les cartes de la main dans la bibliothèque
+            this.openingHand.forEach(card => {
+                this.playerLibrary.push(card);
+            });
+
+            // Remettre les cartes du bottom of library
+            this.bottomOfLibrary.forEach(card => {
+                this.playerLibrary.push(card);
+            });
+
+            // Mélanger
+            this.playerLibrary = this.shuffleArray(this.playerLibrary);
+
+            // Incrémenter le compteur de mulligan
+            this.mulliganCount++;
+
+            // Tirer une nouvelle main (7 - nombre de mulligans)
+            const newHandSize = Math.max(1, 7 - this.mulliganCount);
+            this.openingHand = [];
+            this.bottomOfLibrary = [];
+
+            for (let i = 0; i < newHandSize; i++) {
+                if (this.playerLibrary.length > 0) {
+                    const card = this.playerLibrary.pop();
+                    this.openingHand.push(card);
+                }
+            }
+
+            this.authSuccess = `Mulligan ${this.mulliganCount} - Nouvelle main de ${newHandSize} cartes`;
+            setTimeout(() => this.authSuccess = '', 3000);
+        },
+
+        /**
+         * Garder la main
+         */
+        keepHand() {
+            // Transférer la main vers la main du joueur
+            this.playerHand = [...this.openingHand];
+
+            // Remettre les cartes du bottom of library dans la bibliothèque
+            this.bottomOfLibrary.reverse().forEach(card => {
+                this.playerLibrary.push(card);
+            });
+
+            // Ajouter les cartes exilées à la zone d'exil
+            this.playerExile.push(...this.exileFromMulligan);
+
+            // Aller au playtester principal
+            this.currentView = 'playtester';
+
+            this.authSuccess = 'Main gardée ! Que la partie commence ! 🎮';
+            setTimeout(() => this.authSuccess = '', 3000);
+        },
+
+        /**
+         * Gestion du drag & drop - Début
+         */
+        onDragStart(event, card, index) {
+            this.draggedCard = card;
+            this.draggedIndex = index;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/html', event.target.outerHTML);
+        },
+
+        onDragEnd(event) {
+            this.draggedCard = null;
+            this.draggedIndex = null;
+        },
+
+        onDragEnter(event) {
+            event.target.closest('.drop-zone').classList.add('drag-over');
+        },
+
+        onDragLeave(event) {
+            // Vérifier si on quitte vraiment la zone
+            if (!event.target.closest('.drop-zone').contains(event.relatedTarget)) {
+                event.target.closest('.drop-zone').classList.remove('drag-over');
+            }
+        },
+
+        /**
+         * Gestion du drop
+         */
+        onDrop(event, zone) {
+            event.preventDefault();
+            event.target.closest('.drop-zone').classList.remove('drag-over');
+
+            if (!this.draggedCard || this.draggedIndex === null) return;
+
+            const card = this.draggedCard;
+            const index = this.draggedIndex;
+
+            // Retirer la carte de la main
+            this.openingHand.splice(index, 1);
+
+            // Ajouter à la zone appropriée
+            if (zone === 'library') {
+                this.bottomOfLibrary.push(card);
+                this.authSuccess = `${card.name} envoyée au fond de la bibliothèque`;
+            } else if (zone === 'exile') {
+                this.exileFromMulligan.push(card);
+                this.authSuccess = `${card.name} exilée`;
+            }
+
+            setTimeout(() => this.authSuccess = '', 2000);
+        },
+
+        /**
+         * Sortir du mulligan
+         */
+        exitMulligan() {
+            if (confirm('Quitter et retourner à l\'éditeur de deck ?')) {
+                this.currentView = 'deck-editor';
+                this.resetMulliganState();
+            }
+        },
+
+        /**
+         * Reset de l'état mulligan
+         */
+        resetMulliganState() {
+            this.openingHand = [];
+            this.mulliganCount = 0;
+            this.bottomOfLibrary = [];
+            this.exileFromMulligan = [];
+            this.draggedCard = null;
+            this.draggedIndex = null;
+        },
+
+        /**
+         * Reset complet (màj de la méthode existante)
+         */
+        resetGameState() {
+            this.playerLife = 40;
+            this.currentTurn = 1;
+            this.commanderTax = 0;
+            this.playerHand = [];
+            this.playerBattlefield = [];
+            this.playerGraveyard = [];
+            this.playerExile = [];
+            this.playerLibrary = [];
+            this.commandZone = [];
+            this.manaPool = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+            this.lastRoll = { d6: null, d20: null };
+
+            // Reset mulligan
+            this.resetMulliganState();
+        },
+
+        /**
+         * Options (placeholder)
+         */
+        showOptions() {
+            alert('Options à implémenter (scry, règles spéciales, etc.)');
         }
     },
 

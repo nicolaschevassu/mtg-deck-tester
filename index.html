@@ -15,6 +15,7 @@
 
     <!-- Styles -->
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/mulligan.css">
 </head>
 
 <body>
@@ -436,6 +437,69 @@
                             <!-- Tooltip pour l'image de carte -->
                             <div id="card-tooltip" class="card-tooltip">
                                 <img id="card-tooltip-image" src="" alt="" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vue: Mulligan Opening Hand -->
+                <div v-if="currentView === 'mulligan' && currentDeck" class="mulligan-container">
+                    <!-- Bouton retour -->
+                    <div class="mulligan-back">
+                        <button @click="exitMulligan" class="back-btn">
+                            ← Back
+                        </button>
+                    </div>
+
+                    <!-- Compteur de mulligan -->
+                    <div class="mulligan-counter">
+                        Mulligans: {{ mulliganCount }}
+                    </div>
+
+                    <!-- Titre -->
+                    <div class="mulligan-title">
+                        <h1>Opening hand</h1>
+                    </div>
+
+                    <!-- Contrôles principaux -->
+                    <div class="mulligan-controls">
+                        <button @click="keepHand" class="mulligan-btn keep-btn">
+                            Keep this
+                        </button>
+                        <button @click="takeMulligan" class="mulligan-btn mulligan-btn-secondary">
+                            Mulligan ({{ Math.max(0, 7 - mulliganCount) }})
+                        </button>
+                        <button @click="showOptions" class="mulligan-btn options-btn">
+                            ☰ Options
+                        </button>
+                    </div>
+
+                    <!-- Main de départ -->
+                    <div class="opening-hand">
+                        <div class="hand-fan">
+                            <div v-for="(card, index) in openingHand" :key="card.instanceId" class="mulligan-card"
+                                :draggable="true" @dragstart="onDragStart($event, card, index)" @dragend="onDragEnd">
+                                <img :src="card.image_uris?.normal || card.image_uris?.large || cardPlaceholder"
+                                    :alt="card.name" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zones de drop -->
+                    <div class="drop-zones">
+                        <div class="drop-zone library" @drop="onDrop($event, 'library')" @dragover.prevent
+                            @dragenter.prevent @dragleave="onDragLeave" @dragenter="onDragEnter">
+                            <h4>Bottom of library</h4>
+                            <div v-if="bottomOfLibrary.length > 0" class="zone-count">
+                                {{ bottomOfLibrary.length }} cards
+                            </div>
+                        </div>
+
+                        <div class="drop-zone exile" @drop="onDrop($event, 'exile')" @dragover.prevent
+                            @dragenter.prevent @dragleave="onDragLeave" @dragenter="onDragEnter">
+                            <h4>Exile</h4>
+                            <div v-if="exileFromMulligan.length > 0" class="zone-count">
+                                {{ exileFromMulligan.length }} cards
                             </div>
                         </div>
                     </div>

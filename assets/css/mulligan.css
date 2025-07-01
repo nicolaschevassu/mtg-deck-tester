@@ -1,0 +1,558 @@
+/* === MULLIGAN PLEIN ÉCRAN === */
+.mulligan-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(ellipse at center, #2a2a2a 0%, #1a1a1a 100%);
+    display: flex;
+    flex-direction: column;
+    color: white;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+/* Bouton retour */
+.mulligan-back {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1001;
+}
+
+.back-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Titre centré */
+.mulligan-title {
+    text-align: center;
+    margin-top: 60px;
+    margin-bottom: 30px;
+}
+
+.mulligan-title h1 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    margin: 0;
+    color: #e0e0e0;
+}
+
+/* Contrôles principaux */
+.mulligan-controls {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 40px;
+}
+
+.mulligan-btn {
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.keep-btn {
+    background: #28a745;
+    color: white;
+}
+
+.keep-btn:hover {
+    background: #218838;
+    transform: translateY(-2px);
+}
+
+.mulligan-btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.mulligan-btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+.options-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.options-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Compteur de mulligan */
+.mulligan-counter {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+/* Zone des cartes en main */
+.opening-hand {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 2rem;
+    position: relative;
+    min-height: 350px;
+}
+
+.hand-fan {
+    position: relative;
+    width: 100%;
+    height: 250px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+/* Cartes avec effet d'éventail en arc CONCAVE */
+.mulligan-card {
+    width: 140px;
+    height: 195px;
+    cursor: grab;
+    transition: all 0.3s ease;
+    position: absolute;
+    bottom: 0;
+    z-index: 1;
+    transform-origin: center bottom;
+}
+
+.mulligan-card:active {
+    cursor: grabbing;
+}
+
+.mulligan-card img {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+/* Positionnement en arc CONCAVE (centre plus haut, côtés plus bas) */
+.mulligan-card:nth-child(1) {
+    --base-x: -240px;
+    --base-y: 40px;
+    --base-rotation: -20deg;
+    transform: translateX(var(--base-x)) translateY(var(--base-y)) rotate(var(--base-rotation));
+    left: calc(50% - 70px);
+}
+
+.mulligan-card:nth-child(2) {
+    --base-x: -160px;
+    --base-y: 15px;
+    --base-rotation: -13deg;
+    transform: translateX(var(--base-x)) translateY(var(--base-y)) rotate(var(--base-rotation));
+    left: calc(50% - 70px);
+}
+
+.mulligan-card:nth-child(3) {
+    --base-x: -80px;
+    --base-y: 2px;
+    --base-rotation: -7deg;
+    transform: translateX(var(--base-x)) translateY(var(--base-y)) rotate(var(--base-rotation));
+    left: calc(50% - 70px);
+}
+
+.mulligan-card:nth-child(4) {
+    --base-x: 0px;
+    --base-y: 0px;
+    --base-rotation: 0deg;
+    transform: translateX(var(--base-x)) translateY(var(--base-y)) rotate(var(--base-rotation));
+    left: calc(50% - 70px);
+}
+
+.mulligan-card:nth-child(5) {
+    --base-x: 80px;
+    --base-y: 2px;
+    --base-rotation: 7deg;
+    transform: translateX(var(--base-x)) translateY(var(--base-y)) rotate(var(--base-rotation));
+    left: calc(50% - 70px);
+}
+
+.mulligan-card:nth-child(6) {
+    --base-x: 160px;
+    --base-y: 15px;
+    --base-rotation: 13deg;
+    transform: translateX(var(--base-x)) translateY(var(--base-y)) rotate(var(--base-rotation));
+    left: calc(50% - 70px);
+}
+
+.mulligan-card:nth-child(7) {
+    --base-x: 240px;
+    --base-y: 40px;
+    --base-rotation: 20deg;
+    transform: translateX(var(--base-x)) translateY(var(--base-y)) rotate(var(--base-rotation));
+    left: calc(50% - 70px);
+}
+
+/* Hover avec écartement des cartes adjacentes */
+.hand-fan:hover .mulligan-card {
+    transition: all 0.3s ease;
+}
+
+/* Carte survolée : zoom sur place */
+.mulligan-card:hover {
+    transform: translateX(var(--base-x)) translateY(var(--base-y)) rotate(var(--base-rotation)) scale(1.2);
+    z-index: 100;
+}
+
+.mulligan-card:hover img {
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Écartement des cartes adjacentes au hover */
+
+/* Hover sur carte 1 : écarter carte 2 */
+.mulligan-card:nth-child(1):hover~.mulligan-card:nth-child(2) {
+    transform: translateX(-180px) translateY(15px) rotate(-13deg);
+}
+
+/* Hover sur carte 2 : écarter cartes 1 et 3 */
+.mulligan-card:nth-child(2):hover~.mulligan-card:nth-child(1) {
+    transform: translateX(-260px) translateY(40px) rotate(-20deg);
+}
+
+.mulligan-card:nth-child(2):hover~.mulligan-card:nth-child(3) {
+    transform: translateX(-100px) translateY(2px) rotate(-7deg);
+}
+
+/* Hover sur carte 3 : écarter cartes 2 et 4 */
+.mulligan-card:nth-child(3):hover~.mulligan-card:nth-child(2) {
+    transform: translateX(-180px) translateY(15px) rotate(-13deg);
+}
+
+.mulligan-card:nth-child(3):hover~.mulligan-card:nth-child(4) {
+    transform: translateX(20px) translateY(0px) rotate(0deg);
+}
+
+/* Hover sur carte 4 (centre) : écarter cartes 3 et 5 */
+.mulligan-card:nth-child(4):hover~.mulligan-card:nth-child(3) {
+    transform: translateX(-100px) translateY(2px) rotate(-7deg);
+}
+
+.mulligan-card:nth-child(4):hover~.mulligan-card:nth-child(5) {
+    transform: translateX(100px) translateY(2px) rotate(7deg);
+}
+
+/* Hover sur carte 5 : écarter cartes 4 et 6 */
+.mulligan-card:nth-child(5):hover~.mulligan-card:nth-child(4) {
+    transform: translateX(-20px) translateY(0px) rotate(0deg);
+}
+
+.mulligan-card:nth-child(5):hover~.mulligan-card:nth-child(6) {
+    transform: translateX(180px) translateY(15px) rotate(13deg);
+}
+
+/* Hover sur carte 6 : écarter cartes 5 et 7 */
+.mulligan-card:nth-child(6):hover~.mulligan-card:nth-child(5) {
+    transform: translateX(100px) translateY(2px) rotate(7deg);
+}
+
+.mulligan-card:nth-child(6):hover~.mulligan-card:nth-child(7) {
+    transform: translateX(260px) translateY(40px) rotate(20deg);
+}
+
+/* Hover sur carte 7 : écarter carte 6 */
+.mulligan-card:nth-child(7):hover~.mulligan-card:nth-child(6) {
+    transform: translateX(180px) translateY(15px) rotate(13deg);
+}
+
+/* Zones de drop en bas */
+.drop-zones {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    padding: 1rem 2rem 2rem;
+    margin-bottom: 1rem;
+}
+
+.drop-zone {
+    width: 220px;
+    height: 130px;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.drop-zone h4 {
+    margin: 0;
+    color: #b0b0b0;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.zone-count {
+    font-size: 0.9rem;
+    color: #888;
+}
+
+.drop-zone.drag-over {
+    border-color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+    transform: scale(1.05);
+}
+
+.drop-zone.library {
+    border-color: rgba(0, 123, 255, 0.5);
+}
+
+.drop-zone.library.drag-over {
+    border-color: #007bff;
+    background: rgba(0, 123, 255, 0.1);
+}
+
+.drop-zone.exile {
+    border-color: rgba(220, 53, 69, 0.5);
+}
+
+.drop-zone.exile.drag-over {
+    border-color: #dc3545;
+    background: rgba(220, 53, 69, 0.1);
+}
+
+/* Animation pour les cartes qui partent */
+.card-leaving {
+    animation: cardLeave 0.6s ease-out forwards;
+}
+
+@keyframes cardLeave {
+    0% {
+        transform: var(--initial-transform);
+        opacity: 1;
+    }
+
+    50% {
+        transform: var(--initial-transform) scale(0.9);
+        opacity: 0.7;
+    }
+
+    100% {
+        transform: var(--initial-transform) translateY(100px) scale(0.7);
+        opacity: 0;
+    }
+}
+
+/* === RESPONSIVE === */
+
+@media (max-width: 1400px) {
+    .mulligan-card:nth-child(1) {
+        --base-x: -350px;
+        --base-y: 30px;
+        --base-rotation: -18deg;
+    }
+
+    .mulligan-card:nth-child(2) {
+        --base-x: -200px;
+        --base-y: 10px;
+        --base-rotation: -11deg;
+    }
+
+    .mulligan-card:nth-child(3) {
+        --base-x: -65px;
+        --base-y: 1px;
+        --base-rotation: -6deg;
+    }
+
+    .mulligan-card:nth-child(4) {
+        --base-x: 0px;
+        --base-y: 0px;
+        --base-rotation: 0deg;
+    }
+
+    .mulligan-card:nth-child(5) {
+        --base-x: 65px;
+        --base-y: 1px;
+        --base-rotation: 6deg;
+    }
+
+    .mulligan-card:nth-child(6) {
+        --base-x: 130px;
+        --base-y: 10px;
+        --base-rotation: 11deg;
+    }
+
+    .mulligan-card:nth-child(7) {
+        --base-x: 200px;
+        --base-y: 30px;
+        --base-rotation: 18deg;
+    }
+}
+
+@media (max-width: 1200px) {
+    .mulligan-card {
+        width: 120px;
+        height: 167px;
+    }
+
+    .opening-hand {
+        min-height: 300px;
+    }
+
+    .hand-fan {
+        height: 220px;
+    }
+
+    .mulligan-card:nth-child(1) {
+        --base-x: -160px;
+        --base-y: 25px;
+        --base-rotation: -16deg;
+    }
+
+    .mulligan-card:nth-child(2) {
+        --base-x: -105px;
+        --base-y: 8px;
+        --base-rotation: -10deg;
+    }
+
+    .mulligan-card:nth-child(3) {
+        --base-x: -52px;
+        --base-y: 1px;
+        --base-rotation: -5deg;
+    }
+
+    .mulligan-card:nth-child(4) {
+        --base-x: 0px;
+        --base-y: 0px;
+        --base-rotation: 0deg;
+    }
+
+    .mulligan-card:nth-child(5) {
+        --base-x: 52px;
+        --base-y: 1px;
+        --base-rotation: 5deg;
+    }
+
+    .mulligan-card:nth-child(6) {
+        --base-x: 105px;
+        --base-y: 8px;
+        --base-rotation: 10deg;
+    }
+
+    .mulligan-card:nth-child(7) {
+        --base-x: 160px;
+        --base-y: 25px;
+        --base-rotation: 16deg;
+    }
+}
+
+@media (max-width: 768px) {
+    .mulligan-card {
+        width: 100px;
+        height: 139px;
+    }
+
+    .opening-hand {
+        min-height: 280px;
+        padding: 1rem;
+    }
+
+    .hand-fan {
+        height: 180px;
+    }
+
+    .mulligan-title h1 {
+        font-size: 2rem;
+    }
+
+    .mulligan-controls {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .mulligan-card:nth-child(1) {
+        --base-x: -120px;
+        --base-y: 20px;
+        --base-rotation: -14deg;
+    }
+
+    .mulligan-card:nth-child(2) {
+        --base-x: -80px;
+        --base-y: 6px;
+        --base-rotation: -9deg;
+    }
+
+    .mulligan-card:nth-child(3) {
+        --base-x: -40px;
+        --base-y: 1px;
+        --base-rotation: -4deg;
+    }
+
+    .mulligan-card:nth-child(4) {
+        --base-x: 0px;
+        --base-y: 0px;
+        --base-rotation: 0deg;
+    }
+
+    .mulligan-card:nth-child(5) {
+        --base-x: 40px;
+        --base-y: 1px;
+        --base-rotation: 4deg;
+    }
+
+    .mulligan-card:nth-child(6) {
+        --base-x: 80px;
+        --base-y: 6px;
+        --base-rotation: 9deg;
+    }
+
+    .mulligan-card:nth-child(7) {
+        --base-x: 120px;
+        --base-y: 20px;
+        --base-rotation: 14deg;
+    }
+
+    .drop-zones {
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .drop-zone {
+        width: 280px;
+        height: 100px;
+    }
+
+    /* Désactiver l'écartement sur mobile pour éviter les bugs tactiles */
+    .mulligan-card:hover~.mulligan-card {
+        transform: translateX(var(--base-x)) translateY(var(--base-y)) rotate(var(--base-rotation)) !important;
+    }
+}
