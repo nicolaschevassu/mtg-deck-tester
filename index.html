@@ -327,7 +327,7 @@
                                     <div v-for="card in searchResults" :key="card.id" class="card-result"
                                         @click="addCardToDeck(card)"
                                         :title="`Cliquer pour ajouter ${card.name} au deck`">
-                                        <img :src="card.image_uris?.small || 'assets/images/placeholder.png'"
+                                        <img :src="card.image_uris?.small || card.card_faces?.[0]?.image_uris.small || 'assets/images/placeholder.png'"
                                             :alt="card.name" class="card-image"
                                             @error="$event.target.src='assets/images/placeholder.png'" />
                                         <div class="card-info">

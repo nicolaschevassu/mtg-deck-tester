@@ -675,9 +675,10 @@ const app = createApp({
             if (!tooltip || !tooltipImage || !card) return;
 
             // Image de la carte ou placeholder
-            const imageUrl = card.image_uris?.normal ||
-                card.image_uris?.large ||
-                card.image_uris?.small ||
+            const cardURI = card.card_faces?.[0].image_uris || card.image_uris;
+            const imageUrl = cardURI.normal ||
+                cardURI.large ||
+                cardURI.small ||
                 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI3OSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI3OSIgZmlsbD0iI2YwZjBmMCIgc3Ryb2tlPSIjY2NjIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSIxMDAiIHk9IjE0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE2IiBmaWxsPSIjNjY2Ij5NVEc8L3RleHQ+PC9zdmc+';
 
             tooltipImage.src = imageUrl;
