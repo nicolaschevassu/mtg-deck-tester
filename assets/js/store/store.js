@@ -53,7 +53,7 @@ class AppStore {
 
         // Callbacks pour les changements d'état
         this.subscribers = [];
-        
+
         // Debounced search
         this.debouncedSearch = Helpers.debounce(this._performSearch.bind(this), 500);
     }
@@ -65,9 +65,12 @@ class AppStore {
         try {
             this.setState({ loading: true });
 
+            // NOUVEAU : Restaurer l'état de vue sauvegardé
+            const savedViewState = this._loadViewState();
+
             // Tenter de charger la configuration Supabase sauvée
             const savedConfig = await this.supabaseConfig.loadSavedConfig();
-            
+
             if (savedConfig) {
                 this.setState({
                     supabaseConfigured: true,
@@ -77,7 +80,7 @@ class AppStore {
 
                 // Configurer l'authentification
                 this.authService.setupAuthListener();
-                
+
                 // Vérifier la session
                 const user = await this.authService.checkSession();
                 if (user) {
@@ -85,22 +88,33 @@ class AppStore {
                         isAuthenticated: true,
                         currentUser: user
                     });
-                    
+
                     await this.loadUserDecks();
+
+                    // NOUVEAU : Restaurer la vue si authentifié ET vue sauvée valide
+                    if (savedViewState && (savedViewState.currentView === 'mulligan' || savedViewState.currentView === 'playtester')) {
+                        this.setState({
+                            currentView: savedViewState.currentView,
+                            mulliganCount: savedViewState.mulliganCount || 0,
+                            currentTurn: savedViewState.currentTurn || 1
+                        });
+
+                        console.log(`🔄 Vue restaurée: ${savedViewState.currentView}`);
+                    }
                 }
 
                 // Écouter les changements d'auth
                 this.authService.onAuthChange(this._handleAuthChange.bind(this));
             }
 
-            this.setState({ 
+            this.setState({
                 isInitialized: true,
-                loading: false 
+                loading: false
             });
 
         } catch (error) {
             console.error('Erreur d\'initialisation:', error);
-            this.setState({ 
+            this.setState({
                 loading: false,
                 authError: 'Erreur d\'initialisation de l\'application'
             });
@@ -115,7 +129,7 @@ class AppStore {
 
         try {
             await this.supabaseConfig.configure(url, anonKey);
-            
+
             this.setState({
                 supabaseConfigured: true,
                 isConnected: true,
@@ -143,7 +157,7 @@ class AppStore {
 
         try {
             await this.authService.login(email, password);
-            this.setState({ 
+            this.setState({
                 authLoading: false,
                 authSuccess: 'Connexion réussie !'
             });
@@ -163,7 +177,7 @@ class AppStore {
 
         try {
             await this.authService.register(email, password, confirmPassword);
-            this.setState({ 
+            this.setState({
                 authLoading: false,
                 authSuccess: 'Compte créé avec succès ! Vérifiez votre email pour confirmer votre compte.'
             });
@@ -181,6 +195,10 @@ class AppStore {
     async logout() {
         try {
             await this.authService.logout();
+
+            // NOUVEAU : Nettoyer l'état de vue sauvegardé
+            this._clearViewState();
+
             this.setState({
                 currentView: 'decks',
                 currentDeck: null,
@@ -199,15 +217,15 @@ class AppStore {
 
         try {
             const decks = await this.deckService.loadUserDecks();
-            this.setState({ 
+            this.setState({
                 userDecks: decks,
-                decksLoading: false 
+                decksLoading: false
             });
         } catch (error) {
             console.error('Erreur chargement decks:', error);
-            this.setState({ 
+            this.setState({
                 decksLoading: false,
-                authError: error.message 
+                authError: error.message
             });
         }
     }
@@ -220,7 +238,7 @@ class AppStore {
 
         try {
             const newDeck = await this.deckService.createDeck(name, this.state.currentUser.id);
-            
+
             this.setState(prevState => ({
                 userDecks: [newDeck, ...prevState.userDecks],
                 newDeckName: '',
@@ -248,10 +266,10 @@ class AppStore {
 
         try {
             await this.deckService.saveDeck(deckToSave);
-            
+
             // Mettre à jour la liste des decks
             this.setState(prevState => ({
-                userDecks: prevState.userDecks.map(d => 
+                userDecks: prevState.userDecks.map(d =>
                     d.id === deckToSave.id ? { ...deckToSave } : d
                 ),
                 deckLoading: false,
@@ -308,10 +326,10 @@ class AppStore {
             const batchSize = 75;
             for (let i = 0; i < missing.length; i += batchSize) {
                 const batch = missing.slice(i, i + batchSize);
-                
+
                 try {
                     const result = await this.scryfallService.getCardsByIds(batch);
-                    
+
                     // Ajouter les cartes trouvées au cache
                     if (result.found) {
                         this.cardCache.setMany(result.found);
@@ -340,7 +358,7 @@ class AppStore {
 
                 } catch (error) {
                     console.error(`Erreur batch ${i}-${i + batchSize}:`, error);
-                    
+
                     // Fallback: essayer carte par carte
                     for (const cardId of batch) {
                         try {
@@ -369,7 +387,7 @@ class AppStore {
      */
     searchCards(query) {
         this.setState({ searchQuery: query });
-        
+
         if (!query.trim()) {
             this.setState({ searchResults: [] });
             return;
@@ -390,20 +408,20 @@ class AppStore {
         try {
             const results = await this.scryfallService.searchCards(query);
             const limitedResults = results.slice(0, 20); // Limiter à 20 résultats
-            
+
             // Ajouter au cache
             this.cardCache.setMany(limitedResults);
-            
-            this.setState({ 
+
+            this.setState({
                 searchResults: limitedResults,
-                searchLoading: false 
+                searchLoading: false
             });
 
         } catch (error) {
             console.error('Erreur de recherche:', error);
-            this.setState({ 
+            this.setState({
                 searchResults: [],
-                searchLoading: false 
+                searchLoading: false
             });
         }
     }
@@ -420,9 +438,9 @@ class AppStore {
         this.setState(prevState => {
             const newDeck = { ...prevState.currentDeck };
             if (!newDeck.cards) newDeck.cards = {};
-            
+
             newDeck.cards[card.id] = (newDeck.cards[card.id] || 0) + quantity;
-            
+
             return { currentDeck: newDeck };
         });
     }
@@ -436,13 +454,13 @@ class AppStore {
         this.setState(prevState => {
             const newDeck = { ...prevState.currentDeck };
             if (!newDeck.cards) newDeck.cards = {};
-            
+
             if (newQuantity <= 0) {
                 delete newDeck.cards[cardId];
             } else {
                 newDeck.cards[cardId] = newQuantity;
             }
-            
+
             return { currentDeck: newDeck };
         });
     }
@@ -457,7 +475,7 @@ class AppStore {
 
         try {
             const cardList = this.scryfallService.parseCardList(cardListText);
-            
+
             const results = await this.scryfallService.processBulkCardList(
                 cardList,
                 (processed, total, cardName) => {
@@ -473,16 +491,16 @@ class AppStore {
 
             // Afficher les erreurs s'il y en a
             if (results.errors.length > 0) {
-                const errorMessages = results.errors.map(err => 
+                const errorMessages = results.errors.map(err =>
                     `Ligne ${err.lineNumber}: ${err.name} - ${err.error}`
                 ).join('\n');
-                
-                this.setState({ 
-                    authError: `Erreurs lors de l'ajout:\n${errorMessages}` 
+
+                this.setState({
+                    authError: `Erreurs lors de l'ajout:\n${errorMessages}`
                 });
             }
 
-            this.setState({ 
+            this.setState({
                 bulkAddText: '',
                 bulkLoading: false,
                 authSuccess: `${results.success.length} cartes ajoutées avec succès !`
@@ -529,7 +547,12 @@ class AppStore {
         } else {
             this.state = { ...this.state, ...newState };
         }
-        
+
+        // NOUVEAU : Sauvegarder l'état de vue si il a changé
+        if (newState.currentView) {
+            this._saveViewState();
+        }
+
         // Notifier les subscribers
         this._notifySubscribers();
     }
@@ -539,7 +562,7 @@ class AppStore {
      */
     subscribe(callback) {
         this.subscribers.push(callback);
-        
+
         // Retourner une fonction de désabonnement
         return () => {
             const index = this.subscribers.indexOf(callback);
@@ -567,6 +590,55 @@ class AppStore {
      */
     getState() {
         return { ...this.state };
+    }
+
+    /**
+ * Sauvegarder l'état de la vue dans sessionStorage
+ */
+    _saveViewState() {
+        try {
+            const viewState = {
+                currentView: this.state.currentView,
+                mulliganCount: this.state.mulliganCount || 0,
+                currentTurn: this.state.currentTurn || 1,
+                savedAt: Date.now()
+            };
+            sessionStorage.setItem('mtg_view_state', JSON.stringify(viewState));
+        } catch (error) {
+            console.warn('Impossible de sauvegarder l\'état de vue:', error);
+        }
+    }
+
+    /**
+     * Restaurer l'état de la vue depuis sessionStorage
+     */
+    _loadViewState() {
+        try {
+            const saved = sessionStorage.getItem('mtg_view_state');
+            if (!saved) return null;
+
+            const viewState = JSON.parse(saved);
+
+            // Vérifier que l'état n'est pas trop ancien (1 heure max)
+            const maxAge = 60 * 60 * 1000; // 1 heure
+            if (Date.now() - viewState.savedAt > maxAge) {
+                sessionStorage.removeItem('mtg_view_state');
+                return null;
+            }
+
+            return viewState;
+        } catch (error) {
+            console.warn('Impossible de charger l\'état de vue:', error);
+            sessionStorage.removeItem('mtg_view_state');
+            return null;
+        }
+    }
+
+    /**
+     * Nettoyer l'état de vue sauvegardé
+     */
+    _clearViewState() {
+        sessionStorage.removeItem('mtg_view_state');
     }
 }
 

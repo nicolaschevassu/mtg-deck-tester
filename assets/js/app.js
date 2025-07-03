@@ -757,6 +757,7 @@ const app = createApp({
         /**
     * Démarrer le playtest d'un deck
     */
+        // Utiliser cette méthode dans vos actions :
         startPlaytest() {
             if (!this.currentDeck || !this.currentDeck.cards) {
                 this.handleError(new Error('Aucun deck sélectionné'), 'Démarrage playtest');
@@ -764,14 +765,8 @@ const app = createApp({
             }
 
             try {
-                this.currentView = 'playtester';
+                this.changeView('mulligan'); // ✅ Au lieu de : this.currentView = 'mulligan'
                 this.setupCommanderGame();
-                this.authSuccess = 'Playtest démarré ! Bon jeu ! 🎮';
-
-                setTimeout(() => {
-                    this.authSuccess = '';
-                }, 3000);
-
             } catch (error) {
                 this.handleError(error, 'Démarrage playtest');
             }
@@ -997,7 +992,7 @@ const app = createApp({
          */
         exitPlaytest() {
             if (confirm('Quitter le playtest et retourner à l\'éditeur ?')) {
-                this.currentView = 'deck-editor';
+                this.changeView('deck-editor');
                 this.resetGameState();
             }
         },
@@ -1209,7 +1204,7 @@ const app = createApp({
          */
         exitMulligan() {
             if (confirm('Quitter et retourner à l\'éditeur de deck ?')) {
-                this.currentView = 'deck-editor';
+                this.changeView('deck-editor'); // ✅ Au lieu de : this.currentView = 'deck-editor'
                 this.resetMulliganState();
             }
         },
@@ -1251,6 +1246,14 @@ const app = createApp({
          */
         showOptions() {
             alert('Options à implémenter (scry, règles spéciales, etc.)');
+        },
+
+        // Méthode pour changer de vue de manière centralisée
+        changeView(newView) {
+            this.currentView = newView;
+            if (this.store) {
+                this.store.setState({ currentView: newView });
+            }
         }
     },
 
