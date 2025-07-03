@@ -29,25 +29,24 @@
 
 body {
     font-family: var(--font-family);
-    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
-    color: #333;
+    background: radial-gradient(ellipse at center, #2a2a2a 0%, #1a1a1a 100%);
+    color: #181818;
     line-height: 1.6;
     min-height: 100vh;
 }
 
 /* === LAYOUT === */
 .header {
-    text-align: center;
+    text-align: left;
     color: white;
-    padding: 2rem 1rem;
-    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1.5rem;
+    background: #0e0e0e;
     backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
+    font-size: 1.2rem;
     font-weight: 700;
 }
 
@@ -109,8 +108,9 @@ body {
 .config-form,
 .auth-container,
 .app-container {
-    background: white;
+    background: #232323;
     border-radius: var(--border-radius);
+    border: 1px solid rgba(219, 230, 241, .07);
     box-shadow: var(--box-shadow);
     padding: 2rem;
     margin-bottom: 2rem;
