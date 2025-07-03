@@ -373,6 +373,21 @@ const app = createApp({
                 this.authError = '';
 
                 await this.store.openDeck(deck);
+
+                // Précharger les images en arrière-plan
+                setTimeout(async () => {
+                    const cardsToPreload = [];
+                    Object.keys(deck.cards).forEach(cardId => {
+                        const card = this.store.cardCache.get(cardId);
+                        if (card) cardsToPreload.push(card);
+                    });
+
+                    if (cardsToPreload.length > 0) {
+                        await this.store.cardCache.preloadImages(cardsToPreload);
+                        console.log(`📊 Images préchargées pour ${deck.name}`);
+                    }
+                }, 500);
+
                 console.log('✅ Deck ouvert avec succès');
 
             } catch (error) {
@@ -667,28 +682,37 @@ const app = createApp({
                 return 'Date invalide';
             }
         },
-
-        showCardImage(event, card) {
+        /**
+         * Afficher l'image de la carte au survol - AVEC CACHE INTÉGRÉ
+         */
+        async showCardImage(event, card) {
             const tooltip = document.getElementById('card-tooltip');
             const tooltipImage = document.getElementById('card-tooltip-image');
 
-            if (!tooltip || !tooltipImage || !card) return;
+            if (!tooltip || !tooltipImage || !card || !this.store?.cardCache) return;
 
-            // Image de la carte ou placeholder
-            const cardURI = card.card_faces?.[0].image_uris || card.image_uris;
-            const imageUrl = cardURI.normal ||
-                cardURI.large ||
-                cardURI.small ||
-                'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI3OSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI3OSIgZmlsbD0iI2YwZjBmMCIgc3Ryb2tlPSIjY2NjIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSIxMDAiIHk9IjE0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE2IiBmaWxsPSIjNjY2Ij5NVEc8L3RleHQ+PC9zdmc+';
+            try {
+                // Utiliser le cache intégré pour obtenir l'image
+                const imageUrl = await this.store.cardCache.getImage(card);
 
-            tooltipImage.src = imageUrl;
-            tooltipImage.alt = card.name;
+                if (imageUrl) {
+                    tooltipImage.src = imageUrl;
+                    tooltipImage.alt = card.name;
+                } else {
+                    // Fallback vers placeholder
+                    tooltipImage.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI3OSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI3OSIgZmlsbD0iI2YwZjBmMCIgc3Ryb2tlPSIjY2NjIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSIxMDAiIHk9IjE0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE2IiBmaWxsPSIjNjY2Ij5NVEc8L3RleHQ+PC9zdmc+';
+                    tooltipImage.alt = 'Image non disponible';
+                }
 
-            // Position du tooltip
-            this.positionTooltip(event, tooltip);
+                // Position du tooltip
+                this.positionTooltip(event, tooltip);
 
-            // Afficher le tooltip
-            tooltip.classList.add('show');
+                // Afficher le tooltip
+                tooltip.classList.add('show');
+
+            } catch (error) {
+                console.warn('Erreur affichage image carte:', error);
+            }
         },
 
         /**
