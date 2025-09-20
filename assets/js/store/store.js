@@ -91,15 +91,33 @@ class AppStore {
 
                     await this.loadUserDecks();
 
-                    // NOUVEAU : Restaurer la vue si authentifié ET vue sauvée valide
-                    if (savedViewState && (savedViewState.currentView === 'mulligan' || savedViewState.currentView === 'playtester')) {
-                        this.setState({
-                            currentView: savedViewState.currentView,
-                            mulliganCount: savedViewState.mulliganCount || 0,
-                            currentTurn: savedViewState.currentTurn || 1
-                        });
+                    // NOUVEAU : Restaurer la vue si authentifié ET vue sauvée valide ET deck disponible
+                    if (savedViewState &&
+                        (savedViewState.currentView === 'mulligan' || savedViewState.currentView === 'playtester') &&
+                        savedViewState.currentDeckId) {
 
-                        console.log(`🔄 Vue restaurée: ${savedViewState.currentView}`);
+                        // Vérifier que le deck existe encore
+                        const deckExists = this.state.userDecks.find(deck => deck.id === savedViewState.currentDeckId);
+
+                        if (deckExists) {
+                            this.setState({
+                                currentView: savedViewState.currentView,
+                                currentDeck: deckExists,
+                                mulliganCount: savedViewState.mulliganCount || 0,
+                                currentTurn: savedViewState.currentTurn || 1
+                            });
+                            console.log(`🔄 Vue restaurée: ${savedViewState.currentView} avec deck: ${deckExists.name}`);
+                        } else {
+                            // Le deck n'existe plus, retour à la vue decks
+                            this.setState({ currentView: 'decks' });
+                            console.log('🏠 Deck non trouvé, retour à la vue decks');
+                        }
+                    } else {
+                        // S'assurer que la vue par défaut est 'decks'
+                        this.setState({
+                            currentView: 'decks'
+                        });
+                        console.log('🏠 Vue par défaut: decks');
                     }
                 }
 
