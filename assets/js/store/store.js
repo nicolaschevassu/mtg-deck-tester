@@ -208,6 +208,26 @@ class AppStore {
     }
 
     /**
+     * Récupération de mot de passe
+     */
+    async resetPassword(email) {
+        this.setState({ authLoading: true, authError: '', authSuccess: '' });
+
+        try {
+            await this.authService.resetPassword(email);
+            this.setState({
+                authLoading: false,
+                authSuccess: 'Un email de récupération a été envoyé à votre adresse.'
+            });
+        } catch (error) {
+            this.setState({
+                authLoading: false,
+                authError: error.message
+            });
+        }
+    }
+
+    /**
      * Déconnexion
      */
     async logout() {

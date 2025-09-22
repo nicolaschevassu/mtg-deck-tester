@@ -90,6 +90,31 @@ export const AuthMixin = {
             }
         },
 
+        async resetPassword() {
+            if (!this.store) {
+                this.handleError(new Error('Application non initialisée'), 'Récupération de mot de passe');
+                return;
+            }
+
+            try {
+                this.authLoading = true;
+                this.authError = '';
+
+                await this.store.resetPassword(this.resetForm.email);
+
+                this.resetForm = { email: '' };
+                this.authMode = 'login';
+                this.authSuccess = 'Un email de récupération a été envoyé à votre adresse. Vérifiez votre boîte de réception.';
+
+                console.log('✅ Email de récupération envoyé');
+
+            } catch (error) {
+                this.handleError(error, 'Récupération de mot de passe');
+            } finally {
+                this.authLoading = false;
+            }
+        },
+
         async logout() {
             if (!this.store) {
                 this.handleError(new Error('Application non initialisée'), 'Déconnexion');

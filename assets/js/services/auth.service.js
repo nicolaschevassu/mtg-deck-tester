@@ -70,13 +70,61 @@ class AuthService {
     }
 
     /**
+     * Récupération de mot de passe
+     */
+    async resetPassword(email) {
+        if (!email) {
+            throw new Error('Email requis');
+        }
+
+        try {
+            const client = this.supabaseConfig.getClient();
+            const { error } = await client.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/reset-password.html`
+            });
+
+            if (error) throw error;
+
+            return true;
+        } catch (error) {
+            throw new Error(`Erreur lors de l'envoi de l'email de récupération: ${error.message}`);
+        }
+    }
+
+    /**
+     * Mise à jour du mot de passe
+     */
+    async updatePassword(newPassword) {
+        if (!newPassword) {
+            throw new Error('Nouveau mot de passe requis');
+        }
+
+        if (newPassword.length < 6) {
+            throw new Error('Le mot de passe doit contenir au moins 6 caractères');
+        }
+
+        try {
+            const client = this.supabaseConfig.getClient();
+            const { error } = await client.auth.updateUser({
+                password: newPassword
+            });
+
+            if (error) throw error;
+
+            return true;
+        } catch (error) {
+            throw new Error(`Erreur lors de la mise à jour du mot de passe: ${error.message}`);
+        }
+    }
+
+    /**
      * Déconnexion
      */
     async logout() {
         try {
             const client = this.supabaseConfig.getClient();
             const { error } = await client.auth.signOut();
-            
+
             if (error) throw error;
 
             this.currentUser = null;

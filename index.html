@@ -135,6 +135,11 @@
                     <button type="submit" class="btn" :disabled="authLoading">
                         {{ authLoading ? 'Connexion...' : 'Se connecter' }}
                     </button>
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <a href="#" @click.prevent="authMode = 'reset'" style="color: var(--primary-color); text-decoration: none; font-size: 0.9rem;">
+                            Mot de passe oublié ?
+                        </a>
+                    </div>
                 </form>
 
                 <!-- Formulaire d'inscription -->
@@ -157,6 +162,23 @@
                     <button type="submit" class="btn" :disabled="authLoading">
                         {{ authLoading ? 'Inscription...' : 'S\'inscrire' }}
                     </button>
+                </form>
+
+                <!-- Formulaire de récupération de mot de passe -->
+                <form v-if="authMode === 'reset'" @submit.prevent="resetPassword">
+                    <div class="form-group">
+                        <label for="reset-email">Email :</label>
+                        <input type="email" id="reset-email" v-model="resetForm.email" required
+                            placeholder="votre@email.com" />
+                    </div>
+                    <button type="submit" class="btn" :disabled="authLoading">
+                        {{ authLoading ? 'Envoi en cours...' : 'Envoyer le lien de récupération' }}
+                    </button>
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <a href="#" @click.prevent="authMode = 'login'" style="color: var(--primary-color); text-decoration: none; font-size: 0.9rem;">
+                            ← Retour à la connexion
+                        </a>
+                    </div>
                 </form>
 
                 <!-- Messages d'erreur et de succès -->

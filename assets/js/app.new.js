@@ -63,6 +63,9 @@ const app = createApp({
                 password: '',
                 confirmPassword: ''
             },
+            resetForm: {
+                email: ''
+            },
             supabaseConfig: {
                 url: '',
                 anonKey: ''
